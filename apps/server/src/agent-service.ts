@@ -3,11 +3,16 @@ import type { AppConfig } from "./config.js";
 import { isArkConfigured } from "./config.js";
 import { HttpError, RunCancelledError } from "./errors.js";
 import { JsonStore } from "./store.js";
-import { checkAbility } from "./middleware/policy-checker.js";
 import {
+  classifyAction,
   defaultAgentAbilities,
   type Ability,
 } from "./middleware/permissions.js";
+import {
+  evaluateAction,
+  overallDecision,
+} from "./middleware/policy-checker.js";
+
 import type {
   Agent,
   AgentRun,
@@ -15,11 +20,13 @@ import type {
   CreateAgentInput,
   Message,
   UpdateAgentInput,
+  AuditEntry,
 } from "./types.js";
 import { WorkspaceManager } from "./workspace.js";
 
 const now = () => new Date().toISOString();
 
+// get all the granted abilities
 function grantedList(abilities: Record<Ability, boolean>): Ability[] {
   return Object.entries(abilities)
     .filter(([, granted]) => granted)
@@ -204,6 +211,7 @@ export class AgentService {
       content: prompt,
       createdAt: timestamp,
     };
+    
     const agentAtStart = await this.store.mutate((database) => {
       const storedAgent = database.agents.find((item) => item.id === agentId);
       if (!storedAgent) {
@@ -223,37 +231,63 @@ export class AgentService {
       storedAgent.updatedAt = timestamp;
       return snapshot;
     });
-    const decision = checkAbility(
-      "canRunCommand",
+
+    const requiredAbilities = classifyAction(prompt);
+
+    const results = evaluateAction(
+      requiredAbilities,
       grantedList(agentAtStart.abilities),
     );
 
-    await this.recordAudit({
-      userId,
-      agentId,
-      runId: run.id,
-      actor: "human",
-      action: "canRunCommand",
-      decision: decision.allowed ? "allowed" : "denied",
-      reason: decision.reason,
-    });
+    for (const result of results) {
+      await this.recordAudit({
+        userId,
+        agentId,
+        runId: run.id,
+        actor: "human",
+        action: result.ability,
+        risk: result.risk,
+        decision: result.decision,
+        reason: result.reason,
+      });
+    }
+    const decision = overallDecision(results);
+    const denied = results.find((result) => result.decision === "denied");
+    const pending = results.find(
+      (result) => result.decision === "pending_approval",
+    );
 
-    if (!decision.allowed) {
+    if (decision === "denied" && denied) {
+      await this.failRun(agentId, run.id, "failed", denied.reason);
+      throw new HttpError(403, denied.reason);
+    }
+
+    if (decision === "pending_approval" && pending) {
       await this.store.mutate((database) => {
-        const storedAgent = database.agents.find((item) => item.id === agentId);
-        const storedRun = database.runs.find((item) => item.id === run.id);
+        const storedAgent = database.agents.find(
+          (agent) => agent.id === agentId,
+        );
+        const storedRun = database.runs.find(
+          (storedRun) => storedRun.id === run.id,
+        );
+
         if (storedAgent) {
           storedAgent.status = "ready";
-          storedAgent.lastError = decision.reason;
+          storedAgent.updatedAt = now();
         }
+
         if (storedRun) {
-          storedRun.status = "failed";
-          storedRun.error = decision.reason;
-          storedRun.completedAt = now();
+          storedRun.status = "pending_approval";
+          storedRun.error = pending.reason;
         }
       });
-      throw new HttpError(403, decision.reason);
+
+      return {
+        run: this.getRun(run.id),
+        message,
+      };
     }
+
     const execution = this.executeRun(agentAtStart, run);
     this.activeExecutions.set(agentId, execution);
     void execution
@@ -285,6 +319,7 @@ export class AgentService {
       runId: null,
       actor: "human",
       action: "updateAbilities:" + JSON.stringify(patch),
+      risk: null,
       decision: "allowed",
       reason: null,
     });
@@ -418,16 +453,11 @@ export class AgentService {
     }
   }
 
-  // Audit any events
-  private async recordAudit(entry: {
-    userId: string;
-    agentId: string;
-    runId: string | null;
-    actor: "human" | "agent" | "system";
-    action: string;
-    decision: "allowed" | "denied";
-    reason: string | null;
-  }): Promise<void> {
+  // Logs whenever something important happens involving Agent permissions or policy decisions
+  // It records if the permission is granted or revoke,
+  // if the policy allows, denies or pauses the action,
+  // if a human approves or rejects a pending action
+  private async recordAudit(entry: AuditEntry): Promise<void> {
     await this.store.mutate((database) => {
       database.auditEvents.push({
         id: randomUUID(),
@@ -435,5 +465,80 @@ export class AgentService {
         ...entry,
       });
     });
+  }
+
+  /* Human approval for high-risk agent actions */
+  // When disapprove, it finds the run and then don't let the agent
+  private async failRun(
+    agentId: string,
+    runId: string,
+    status: "denied" | "failed",
+    reason: string,
+  ) {
+    await this.store.mutate((database) => {
+      const storedAgent = database.agents.find((a) => a.id === agentId);
+      const storedRun = database.runs.find((r) => r.id === runId);
+      if (storedAgent) {
+        storedAgent.status = "ready";
+        storedAgent.lastError = reason;
+      }
+      if (storedRun) {
+        storedRun.status = status;
+        storedRun.error = reason;
+        storedRun.completedAt = now();
+      }
+    });
+  }
+
+  // When approve, it finds the run and then let the agent run
+  async approveRun(
+    runId: string,
+    approverUserId: string,
+    grant: boolean,
+  ): Promise<AgentRun> {
+    const run = this.getRun(runId);
+    if (run.status !== "pending_approval") {
+      throw new HttpError(409, "This run is not awaiting approval");
+    }
+    const agent = this.getAgent(run.agentId);
+
+    await this.recordAudit({
+      userId: approverUserId,
+      agentId: agent.id,
+      runId: run.id,
+      actor: "human",
+      action: grant ? "approve_run" : "deny_run",
+      risk: "high",
+      decision: grant ? "allowed" : "denied",
+      reason: grant
+        ? "Approved by " + approverUserId
+        : "Denied by " + approverUserId,
+    });
+
+    if (!grant) {
+      await this.failRun(
+        agent.id,
+        run.id,
+        "denied",
+        "Approval denied by " + approverUserId,
+      );
+      return this.getRun(runId);
+    }
+
+    await this.store.mutate((database) => {
+      const storedAgent = database.agents.find((a) => a.id === agent.id);
+      if (storedAgent) storedAgent.status = "busy";
+    });
+    const execution = this.executeRun(agent, run);
+    this.activeExecutions.set(agent.id, execution);
+    void execution
+      .finally(() => {
+        if (this.activeExecutions.get(agent.id) === execution) {
+          this.activeExecutions.delete(agent.id);
+        }
+      })
+      .catch(() => undefined);
+
+    return this.getRun(runId);
   }
 }

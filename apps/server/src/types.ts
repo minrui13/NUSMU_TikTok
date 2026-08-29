@@ -3,13 +3,15 @@ import type { Ability } from "./middleware/permissions.ts";
 export type AgentStatus = "ready" | "busy" | "stopped" | "error";
 export type RunStatus =
   | "queued"
+  | "pending_approval"
   | "running"
   | "completed"
   | "failed"
+  | "denied"
   | "cancelled";
 export type MessageRole = "user" | "assistant";
 
-export type AuditDecision = "allowed" | "denied";
+export type AuditDecision = "allowed" | "denied" | "pending_approval";
 export type AuditActor = "human" | "agent" | "system";
 
 export interface Agent {
@@ -101,7 +103,19 @@ export interface AuditEvent {
   runId: string | null;
   actor: AuditActor;
   action: string;
+  risk: "low" | "medium" | "high" | "critical" | null;
   decision: AuditDecision;
   reason: string | null;
   createdAt: string;
+}
+
+export interface AuditEntry {
+  userId: string;
+  agentId: string;
+  runId: string | null;
+  actor: AuditActor;
+  action: string;
+  risk: "low" | "medium" | "high" | "critical" | null;
+  decision: AuditDecision;
+  reason: string | null;
 }
