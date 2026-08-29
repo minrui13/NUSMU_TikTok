@@ -1,6 +1,16 @@
+import type { Ability } from "./middleware/permissions.ts";
+
 export type AgentStatus = "ready" | "busy" | "stopped" | "error";
-export type RunStatus = "queued" | "running" | "completed" | "failed" | "cancelled";
+export type RunStatus =
+  | "queued"
+  | "running"
+  | "completed"
+  | "failed"
+  | "cancelled";
 export type MessageRole = "user" | "assistant";
+
+export type AuditDecision = "allowed" | "denied";
+export type AuditActor = "human" | "agent" | "system";
 
 export interface Agent {
   id: string;
@@ -11,6 +21,7 @@ export interface Agent {
   workspacePath: string;
   codexThreadId: string | null;
   lastError: string | null;
+  abilities: Record<Ability, boolean>;
   createdAt: string;
   updatedAt: string;
 }
@@ -48,12 +59,14 @@ export interface Database {
   agents: Agent[];
   messages: Message[];
   runs: AgentRun[];
+  auditEvents: AuditEvent[];
 }
 
 export interface CreateAgentInput {
   name: string;
   description?: string | undefined;
   instructions?: string | undefined;
+  abilities?: Partial<Record<Ability, boolean>> | undefined;
 }
 
 export interface UpdateAgentInput {
@@ -79,4 +92,16 @@ export interface AgentRunner {
   run(request: RunnerRequest): Promise<RunnerResult>;
   cancel(agentId: string): Promise<boolean>;
   isAvailable(): Promise<boolean>;
+}
+
+export interface AuditEvent {
+  id: string;
+  userId: string;
+  agentId: string;
+  runId: string | null;
+  actor: AuditActor;
+  action: string;
+  decision: AuditDecision;
+  reason: string | null;
+  createdAt: string;
 }

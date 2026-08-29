@@ -3,6 +3,11 @@ import type { AppConfig } from "./config.js";
 import { isArkConfigured } from "./config.js";
 import { HttpError, RunCancelledError } from "./errors.js";
 import { JsonStore } from "./store.js";
+import { checkAbility } from "./middleware/policy-checker.js";
+import {
+  defaultAgentAbilities,
+  type Ability,
+} from "./middleware/permissions.js";
 import type {
   Agent,
   AgentRun,
@@ -14,6 +19,12 @@ import type {
 import { WorkspaceManager } from "./workspace.js";
 
 const now = () => new Date().toISOString();
+
+function grantedList(abilities: Record<Ability, boolean>): Ability[] {
+  return Object.entries(abilities)
+    .filter(([, granted]) => granted)
+    .map(([ability]) => ability as Ability);
+}
 
 export class AgentService {
   private readonly activeExecutions = new Map<string, Promise<void>>();
@@ -49,7 +60,9 @@ export class AgentService {
   listAgents(): Agent[] {
     return this.store
       .snapshot()
-      .agents.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+      .agents.sort((left, right) =>
+        right.updatedAt.localeCompare(left.updatedAt),
+      );
   }
 
   getAgent(id: string): Agent {
@@ -72,6 +85,7 @@ export class AgentService {
       workspacePath: this.workspaces.workspacePath(id),
       codexThreadId: null,
       lastError: null,
+      abilities: { ...defaultAgentAbilities, ...input.abilities },
       createdAt: timestamp,
       updatedAt: timestamp,
     };
@@ -91,11 +105,16 @@ export class AgentService {
         throw new HttpError(404, "Agent not found");
       }
       if (agent.status === "busy") {
-        throw new HttpError(409, "Stop the active run before editing this Agent");
+        throw new HttpError(
+          409,
+          "Stop the active run before editing this Agent",
+        );
       }
       if (input.name !== undefined) agent.name = input.name.trim();
-      if (input.description !== undefined) agent.description = input.description.trim();
-      if (input.instructions !== undefined) agent.instructions = input.instructions.trim();
+      if (input.description !== undefined)
+        agent.description = input.description.trim();
+      if (input.instructions !== undefined)
+        agent.instructions = input.instructions.trim();
       agent.lastError = null;
       agent.updatedAt = now();
       return structuredClone(agent);
@@ -110,7 +129,9 @@ export class AgentService {
     const archivedWorkspace = await this.workspaces.archive(agent);
     await this.store.mutate((database) => {
       database.agents = database.agents.filter((item) => item.id !== id);
-      database.messages = database.messages.filter((item) => item.agentId !== id);
+      database.messages = database.messages.filter(
+        (item) => item.agentId !== id,
+      );
       database.runs = database.runs.filter((item) => item.agentId !== id);
     });
     return { archivedWorkspace };
@@ -153,6 +174,7 @@ export class AgentService {
   async sendMessage(
     agentId: string,
     prompt: string,
+    userId: string,
   ): Promise<{ run: AgentRun; message: Message }> {
     if (!isArkConfigured(this.config)) {
       throw new HttpError(
@@ -201,6 +223,37 @@ export class AgentService {
       storedAgent.updatedAt = timestamp;
       return snapshot;
     });
+    const decision = checkAbility(
+      "canRunCommand",
+      grantedList(agentAtStart.abilities),
+    );
+
+    await this.recordAudit({
+      userId,
+      agentId,
+      runId: run.id,
+      actor: "human",
+      action: "canRunCommand",
+      decision: decision.allowed ? "allowed" : "denied",
+      reason: decision.reason,
+    });
+
+    if (!decision.allowed) {
+      await this.store.mutate((database) => {
+        const storedAgent = database.agents.find((item) => item.id === agentId);
+        const storedRun = database.runs.find((item) => item.id === run.id);
+        if (storedAgent) {
+          storedAgent.status = "ready";
+          storedAgent.lastError = decision.reason;
+        }
+        if (storedRun) {
+          storedRun.status = "failed";
+          storedRun.error = decision.reason;
+          storedRun.completedAt = now();
+        }
+      });
+      throw new HttpError(403, decision.reason);
+    }
     const execution = this.executeRun(agentAtStart, run);
     this.activeExecutions.set(agentId, execution);
     void execution
@@ -211,6 +264,40 @@ export class AgentService {
       })
       .catch(() => undefined);
     return { run, message };
+  }
+
+  // Update the abilities of an agent
+  async updateAbilities(
+    id: string,
+    patch: Partial<Record<Ability, boolean>>,
+    userId: string,
+  ): Promise<Agent> {
+    const updated = await this.store.mutate((database) => {
+      const agent = database.agents.find((item) => item.id === id);
+      if (!agent) throw new HttpError(404, "Agent not found");
+      agent.abilities = { ...agent.abilities, ...patch };
+      agent.updatedAt = now();
+      return structuredClone(agent);
+    });
+    await this.recordAudit({
+      userId,
+      agentId: id,
+      runId: null,
+      actor: "human",
+      action: "updateAbilities:" + JSON.stringify(patch),
+      decision: "allowed",
+      reason: null,
+    });
+    return updated;
+  }
+
+  // Get all Audit Events of the specified agent
+  getAuditEvents(agentId: string) {
+    this.getAgent(agentId);
+    return this.store
+      .snapshot()
+      .auditEvents.filter((event) => event.agentId === agentId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
 
   async systemInfo(): Promise<Record<string, unknown>> {
@@ -253,7 +340,9 @@ export class AgentService {
       const completedAt = now();
       await this.store.mutate((database) => {
         const storedRun = database.runs.find((item) => item.id === run.id);
-        const agent = database.agents.find((item) => item.id === agentAtStart.id);
+        const agent = database.agents.find(
+          (item) => item.id === agentAtStart.id,
+        );
         if (!storedRun || !agent) return;
         storedRun.status = "completed";
         storedRun.output = result.output;
@@ -278,7 +367,9 @@ export class AgentService {
       const message = error instanceof Error ? error.message : String(error);
       await this.store.mutate((database) => {
         const storedRun = database.runs.find((item) => item.id === run.id);
-        const agent = database.agents.find((item) => item.id === agentAtStart.id);
+        const agent = database.agents.find(
+          (item) => item.id === agentAtStart.id,
+        );
         if (storedRun) {
           storedRun.status = cancelled ? "cancelled" : "failed";
           storedRun.error = message;
@@ -302,7 +393,10 @@ export class AgentService {
         throw new HttpError(404, "Agent not found");
       }
       if (status === "ready" && agent.status === "busy") {
-        throw new HttpError(409, "Stop the active run before starting this Agent");
+        throw new HttpError(
+          409,
+          "Stop the active run before starting this Agent",
+        );
       }
       agent.status = status;
       if (status === "ready") agent.lastError = null;
@@ -322,5 +416,24 @@ export class AgentService {
     } finally {
       this.cancellationRequests.delete(agentId);
     }
+  }
+
+  // Audit any events
+  private async recordAudit(entry: {
+    userId: string;
+    agentId: string;
+    runId: string | null;
+    actor: "human" | "agent" | "system";
+    action: string;
+    decision: "allowed" | "denied";
+    reason: string | null;
+  }): Promise<void> {
+    await this.store.mutate((database) => {
+      database.auditEvents.push({
+        id: randomUUID(),
+        createdAt: now(),
+        ...entry,
+      });
+    });
   }
 }
