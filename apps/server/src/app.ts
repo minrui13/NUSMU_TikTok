@@ -7,6 +7,7 @@ import { z } from "zod";
 import type { AppConfig } from "./config.js";
 import { HttpError } from "./errors.js";
 import type { AgentService } from "./agent-service.js";
+import { getKnownSecrets, redactSecrets } from "./utils/redaction.js";
 
 const agentIdParams = z.object({ id: z.string().uuid() });
 const runIdParams = z.object({ id: z.string().uuid() });
@@ -157,11 +158,20 @@ export async function createApp(
           : frameworkStatus && frameworkStatus >= 400 && frameworkStatus <= 599
             ? frameworkStatus
             : 500;
+    const safeMessage = redactSecrets(appError.message, getKnownSecrets());
     if (statusCode >= 500) {
-      request.log.error(appError);
+      request.log.error({
+        err: {
+          name: appError.name,
+          message: safeMessage,
+          stack: appError.stack
+            ? redactSecrets(appError.stack, getKnownSecrets())
+            : undefined,
+        },
+      });
     }
     return reply.code(statusCode).send({
-      error: appError.message,
+      error: safeMessage,
       ...(validationError ? { details: error.issues } : {}),
     });
   });
