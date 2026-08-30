@@ -29,18 +29,20 @@ export function GroupTaskPanel({
   }, []);
 
   const mentionedAgents = agents
-  .map((agent) => ({
-    agent,
-    index: description.toLowerCase().indexOf("@" + agent.name.toLowerCase()),
-  }))
-  .filter(({ index }) => index !== -1)
-  .sort((a, b) => a.index - b.index)
-  .map(({ agent }) => agent);
+    .map((agent) => ({
+      agent,
+      index: description.toLowerCase().indexOf("@" + agent.name.toLowerCase()),
+    }))
+    .filter(({ index }) => index !== -1)
+    .sort((a, b) => a.index - b.index)
+    .map(({ agent }) => agent);
 
   async function start() {
     setError(null);
     if (mentionedAgents.length < 1) {
-      setError("Mention at least one Agent with @name so the group knows who's included.");
+      setError(
+        "Mention at least one Agent with @name so the group knows who's included.",
+      );
       return;
     }
     setBusy(true);
@@ -56,7 +58,9 @@ export function GroupTaskPanel({
         }
       }, 1000);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to start group task");
+      setError(
+        err instanceof ApiError ? err.message : "Failed to start group task",
+      );
     } finally {
       setBusy(false);
     }
@@ -86,18 +90,30 @@ export function GroupTaskPanel({
             <div className="hint">
               Available Agents:{" "}
               {agents.map((a) => (
-                <code key={a.id} className={mentionedAgents.some((m) => m.id === a.id) ? "mention-hit" : ""}>
+                <code
+                  key={a.id}
+                  className={
+                    mentionedAgents.some((m) => m.id === a.id)
+                      ? "mention-hit"
+                      : ""
+                  }
+                >
                   @{a.name}
                 </code>
               ))}
             </div>
             {mentionedAgents.length > 0 && (
               <div className="hint">
-                Participants in order: {mentionedAgents.map((a) => a.name).join(" → ")}
+                Participants in order:{" "}
+                {mentionedAgents.map((a) => a.name).join(" → ")}
               </div>
             )}
             {error && <div className="error-banner">{error}</div>}
-            <button className="primary" onClick={start} disabled={busy || !description.trim()}>
+            <button
+              className="primary"
+              onClick={start}
+              disabled={busy || !description.trim()}
+            >
               {busy ? "Starting…" : "Start Group Task"}
             </button>
           </div>
@@ -105,7 +121,16 @@ export function GroupTaskPanel({
 
         {task && (
           <div className="modal-body">
-            <div className={"status status-" + (task.status === "running" ? "busy" : task.status === "completed" ? "ready" : "error")}>
+            <div
+              className={
+                "status status-" +
+                (task.status === "running"
+                  ? "busy"
+                  : task.status === "completed"
+                    ? "ready"
+                    : "error")
+              }
+            >
               <span className="status-dot" />
               {task.status}
             </div>
@@ -114,11 +139,15 @@ export function GroupTaskPanel({
               {task.turns.map((turn) => (
                 <div key={turn.id} className="group-task-turn">
                   <strong>{turn.agentName}</strong>
-                  <span className="timestamp">{formatTime(turn.createdAt)}</span>
+                  <span className="timestamp">
+                    {formatTime(turn.createdAt)}
+                  </span>
                   <div>{turn.content}</div>
                 </div>
               ))}
-              {task.turns.length === 0 && task.status === "running" && <Spinner />}
+              {task.turns.length === 0 && task.status === "running" && (
+                <Spinner />
+              )}
             </div>
           </div>
         )}
