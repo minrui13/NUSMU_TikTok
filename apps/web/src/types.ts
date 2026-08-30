@@ -1,7 +1,12 @@
 import { Ability } from "./types/abilities";
 
 export type AgentStatus = "ready" | "busy" | "stopped" | "error";
-export type RunStatus = "queued" | "running" | "completed" | "failed" | "cancelled";
+export type RunStatus =
+  | "queued"
+  | "running"
+  | "completed"
+  | "failed"
+  | "cancelled";
 export type GroupTaskStatus = "running" | "completed" | "failed";
 
 export interface GroupTaskTurn {
@@ -72,5 +77,55 @@ export interface SystemInfo {
   runtime: string;
 }
 
+export type ImmuneThreatCategory =
+  | "prompt_injection"
+  | "credential_access"
+  | "data_exfiltration"
+  | "destructive_action"
+  | "workspace_escape"
+  | "suspicious_network";
+
+export interface ImmuneThreatEvent {
+  id: string;
+  agentId: string;
+  runId: string;
+  promptExcerpt: string;
+
+  score: number;
+  baseScore?: number;
+  memoryAdjustment: number;
+
+  decision: "allow" | "review" | "deny";
+  categories: ImmuneThreatCategory[];
+  reasons: string[];
+
+  scoreBreakdown?: {
+    label: string;
+    score: number;
+  }[];
+
+  matchedMemoryIds: string[];
+  learnedMatch: boolean;
+
+  reviewStatus: "pending" | "confirmed" | "dismissed";
+  createdAt: string;
+  reviewedAt: string | null;
+}
+
+export interface ImmuneMemory {
+  id: string;
+  category: ImmuneThreatCategory;
+  label: string;
+  fingerprint: string;
+  confirmations: number;
+  dismissals: number;
+  detections: number;
+  confidence: number;
+  autoBlock: boolean;
+  status: "active" | "disabled";
+  learnedFromEventId: string;
+  createdAt: string;
+  updatedAt: string;
+}
 export type View = "playground" | "abilities" | "audit" | "approvals";
 

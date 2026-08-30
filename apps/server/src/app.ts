@@ -14,6 +14,8 @@ import type { GroupTaskService } from "./group-task-service.js"; // add import
 
 const agentIdParams = z.object({ id: z.string().uuid() });
 const runIdParams = z.object({ id: z.string().uuid() });
+const immuneEventIdParams = z.object({ id: z.string().uuid() });
+const immuneReviewBody = z.object({ action: z.enum(["confirm", "dismiss"]) });
 const createAgentBody = z.object({
   name: z.string().trim().min(1).max(80),
   description: z.string().max(500).optional(),
@@ -155,6 +157,22 @@ export async function createApp(
   app.get("/api/runs/:id", async (request) => {
     const { id } = runIdParams.parse(request.params);
     return { run: service.getRun(id) };
+  });
+
+  app.get("/api/runs/:id/immune", async (request) => {
+    const { id } = runIdParams.parse(request.params);
+    return { event: service.getImmuneEventForRun(id) };
+  });
+
+  app.get("/api/agents/:id/immune-memories", async (request) => {
+    const { id } = agentIdParams.parse(request.params);
+    return { memories: service.getImmuneMemories(id) };
+  });
+
+  app.post("/api/immune/events/:id/review", async (request) => {
+    const { id } = immuneEventIdParams.parse(request.params);
+    const body = immuneReviewBody.parse(request.body);
+    return service.reviewImmuneEvent(id, body.action);
   });
   app.post("/api/group-tasks", async (request, reply) => {
     const body = createGroupTaskBody.parse(request.body);

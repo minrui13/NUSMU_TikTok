@@ -3,7 +3,8 @@ import { AbilitiesTable } from "./components/AbilitiesTable";
 import { defaultAbilities } from "./types/abilities";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { Agent, AgentRun, Message, SystemInfo, View } from "./types";
+import { api, ApiError, setAuthToken } from "./api";
+import type { Agent, AgentRun, Message, SystemInfo, ImmuneThreatEvent, View  } from "./types";
 import { GroupTaskPanel } from "./GroupTaskPanel";
 
 const starterPrompts = [
@@ -50,6 +51,7 @@ export default function App() {
   const [form, setForm] = useState(emptyForm);
   const [prompt, setPrompt] = useState("");
   const [activeRun, setActiveRun] = useState<AgentRun | null>(null);
+  const [immuneEvent, setImmuneEvent] = useState<ImmuneThreatEvent | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [authRequired, setAuthRequired] = useState<boolean | null>(null);
@@ -123,16 +125,28 @@ export default function App() {
 
   useEffect(() => {
     setActiveRun(null);
+    setImmuneEvent(null);
     setShowSettings(false);
+
     if (!selectedId) {
       setMessages([]);
       return;
     }
-    void Promise.all([refreshMessages(selectedId), api.runs(selectedId)])
+
+    void Promise.all([
+      refreshMessages(selectedId),
+      api.runs(selectedId),
+    ])
       .then(([, result]) => {
         if (selectedIdRef.current !== selectedId) return;
+
         const latest = result.runs[0] ?? null;
         setActiveRun(latest);
+        if (latest) {
+          void api.immuneEvent(latest.id).then((value) => {
+            if (selectedIdRef.current === selectedId) setImmuneEvent(value.event);
+          });
+        }
         if (latest && ["queued", "running"].includes(latest.status)) {
           void pollRun(latest.id, selectedId).catch((reason) =>
             setError(reason instanceof Error ? reason.message : String(reason)),
@@ -238,7 +252,13 @@ export default function App() {
         await new Promise((resolve) => window.setTimeout(resolve, 900));
         if (!mountedRef.current) return;
         const result = await api.run(runId);
-        if (selectedIdRef.current === agentId) setActiveRun(result.run);
+        if (selectedIdRef.current === agentId) {
+          setActiveRun(result.run);
+          if (!["queued", "running"].includes(result.run.status)) {
+            const immune = await api.immuneEvent(runId);
+            setImmuneEvent(immune.event);
+          }
+        }
         if (!["queued", "running"].includes(result.run.status)) {
           await Promise.all([refreshMessages(agentId), refreshAgents()]);
           return;
@@ -255,6 +275,7 @@ export default function App() {
     const content = prompt.trim();
     setPrompt("");
     setError(null);
+    setImmuneEvent(null);
     try {
       const result = await api.sendMessage(selected.id, content);
       if (selectedIdRef.current === selected.id) {
@@ -267,10 +288,27 @@ export default function App() {
         ),
       );
       await pollRun(result.run.id, selected.id);
+      const memoryResult = await api.immuneMemories(selected.id);
+      // if (selectedIdRef.current === selected.id) setImmuneMemories(memoryResult.memories);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason));
       setActiveRun(null);
       await refreshAgents();
+    }
+  };
+
+
+  const reviewImmuneEvent = async (action: "confirm" | "dismiss") => {
+    if (!immuneEvent) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await api.reviewImmuneEvent(immuneEvent.id, action);
+      setImmuneEvent(result.event);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -619,25 +657,138 @@ export default function App() {
                     </article>
                   ))
                 )}
-                {activeRun &&
-                  ["queued", "running"].includes(activeRun.status) && (
-                    <article className="message message-assistant thinking">
-                      <div className="message-meta">
-                        <strong>{selected.name}</strong>
-                        <span>{"working in the Agent workspace"}</span>
-                      </div>
-                      <div className="thinking-row">
-                        <Spinner />
-                        {"Codex is reading, editing, or running commands…\r"}
-                      </div>
-                    </article>
-                  )}
-                {activeRun?.status === "failed" && (
-                  <article className="run-error">
-                    <strong>{"Run failed"}</strong>
-                    <span>{activeRun.error}</span>
+                {activeRun && ["queued", "running"].includes(activeRun.status) && (
+                  <article className="message message-assistant thinking">
+                    <div className="message-meta">
+                      <strong>{selected.name}</strong>
+                      <span>working in the Agent workspace</span>
+                    </div>
+                    <div className="thinking-row">
+                      <Spinner />
+                      Codex is reading, editing, or running commands…
+                    </div>
                   </article>
                 )}
+                {activeRun?.status === "failed" && immuneEvent?.decision === "deny" && (
+                  <article className="run-blocked">
+                    <strong>🛡 Run blocked by Agent Immune</strong>
+                    <span>
+                      Execution was stopped automatically because this Run exceeded
+                      the blocking threshold.
+                    </span>
+                  </article>
+                )}
+
+                {activeRun?.status === "failed" && immuneEvent?.decision === "review" && (
+                  <article className="run-blocked">
+                    <strong>⚠ Run held for human review</strong>
+                    <span>
+                      This Run is suspicious but not severe enough to auto-block.
+                      An operator decision is required.
+                    </span>
+                  </article>
+                )}
+                {immuneEvent && (
+                  <article className="immune-card">
+                    <div className="immune-card-head">
+                      <div>
+                        <span className="eyebrow">Agent Immune</span>
+                        <strong>{immuneEvent.learnedMatch ? "Immune Memory matched" : "Threat intercepted"}</strong>
+                      </div>
+                      <span className="immune-score">{immuneEvent.score}/100</span>
+                      <div className="immune-score-explanation">
+                        {/* <div className="immune-score-title">
+                          <strong>Why this score?</strong>
+                        </div>
+
+                        {immuneEvent.learnedMatch && (
+                          <div className="immune-learning-summary">
+                            <span>
+                              Static risk
+                              <strong>{immuneEvent.baseScore ?? immuneEvent.score}/100</strong>
+                            </span>
+
+                            <span>
+                              Immune Memory
+                              <strong>
+                                +<strong>+{immuneEvent.memoryAdjustment ?? 0}</strong>
+                              </strong>
+                            </span>
+
+                            <span>
+                              Final risk
+                              <strong>{immuneEvent.score}/100</strong>
+                            </span>
+                          </div>
+                        )} */}
+
+                        {(immuneEvent.scoreBreakdown ?? []).map((signal) => (
+                          <div
+                            className="immune-score-row"
+                            key={signal.label}
+                          >
+                            <span>{signal.label}</span>
+                            <strong>+{signal.score}</strong>
+                          </div>
+                        ))}
+
+                        <div className="immune-score-row immune-score-total">
+                          <span>Final risk</span>
+                          <strong>{immuneEvent.score}/100</strong>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="immune-tags">
+                      {immuneEvent.categories.map((category) => (
+                        <span key={category}>{category.replaceAll("_", " ")}</span>
+                      ))}
+                    </div>
+                    <ul>
+                      {immuneEvent.reasons.map((reason) => <li key={reason}>{reason}</li>)}
+                    </ul>
+                    {immuneEvent.learnedMatch && (
+                      <div className="immune-match-box">
+                        <strong>🛡 Immune Memory Match</strong>
+                        <span>
+                          This Run matched a previously confirmed threat pattern.
+                        </span>
+                      </div>
+                    )}
+                    {immuneEvent.reviewStatus === "pending" && immuneEvent.decision === "review" && (
+                      <div className="immune-actions">
+                        <button
+                          className="button button-primary"
+                          disabled={busy}
+                        >
+                          Approve once
+                        </button>
+
+                        <button
+                          className="button button-ghost"
+                          onClick={() => void reviewImmuneEvent("confirm")}
+                          disabled={busy}
+                        >
+                          Confirm threat
+                        </button>
+                      </div>
+                    )}
+
+                    {immuneEvent.decision === "deny" && (
+                      <div className="immune-reviewed">
+                        🛡 Automatically blocked — no human approval required
+                      </div>
+                    )}
+
+                    {immuneEvent.reviewStatus !== "pending" && (
+                      <div className="immune-reviewed">
+                        {immuneEvent.reviewStatus === "confirmed"
+                          ? "✓ Threat confirmed and added to Immune Memory"
+                          : "Marked as false positive"}
+                      </div>
+                    )}
+                  </article>
+                )}
+                
                 <div ref={messageEnd} />
               </div>
 
