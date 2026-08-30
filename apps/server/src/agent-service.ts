@@ -12,6 +12,7 @@ import type {
   UpdateAgentInput,
 } from "./types.js";
 import { WorkspaceManager } from "./workspace.js";
+import { getKnownSecrets, redactSecrets } from "./utils/redaction.js";
 
 const now = () => new Date().toISOString();
 
@@ -255,8 +256,9 @@ export class AgentService {
         const storedRun = database.runs.find((item) => item.id === run.id);
         const agent = database.agents.find((item) => item.id === agentAtStart.id);
         if (!storedRun || !agent) return;
+        const safeOutput = redactSecrets(result.output, getKnownSecrets());
         storedRun.status = "completed";
-        storedRun.output = result.output;
+        storedRun.output = safeOutput;
         storedRun.usage = result.usage;
         storedRun.completedAt = completedAt;
         database.messages.push({
@@ -264,7 +266,7 @@ export class AgentService {
           agentId: agent.id,
           runId: run.id,
           role: "assistant",
-          content: result.output,
+          content: safeOutput,
           createdAt: completedAt,
         });
         agent.status = "ready";
@@ -276,19 +278,20 @@ export class AgentService {
       const completedAt = now();
       const cancelled = error instanceof RunCancelledError;
       const message = error instanceof Error ? error.message : String(error);
+      const safeMessage = redactSecrets(message, getKnownSecrets());
       await this.store.mutate((database) => {
         const storedRun = database.runs.find((item) => item.id === run.id);
         const agent = database.agents.find((item) => item.id === agentAtStart.id);
         if (storedRun) {
           storedRun.status = cancelled ? "cancelled" : "failed";
-          storedRun.error = message;
+          storedRun.error = safeMessage;
           storedRun.completedAt = completedAt;
         }
         if (agent) {
           if (agent.status !== "stopped") {
             agent.status = cancelled ? "ready" : "error";
           }
-          agent.lastError = cancelled ? null : message;
+          agent.lastError = cancelled ? null : safeMessage;
           agent.updatedAt = completedAt;
         }
       });
