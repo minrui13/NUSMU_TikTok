@@ -382,13 +382,6 @@ export default function App() {
           <span className="button-icon">👥</span> Group Task
         </button>
 
-        <button
-          className="button button-secondary group-task-button"
-          onClick={() => setShowGroupTask(true)}
-        >
-          <span className="button-icon">👥</span> Group Task
-        </button>
-
         <div className="sidebar-label">
           <span>{"Utilities"}</span>
         </div>
@@ -802,7 +795,10 @@ export default function App() {
         </div>
       )}
       {showGroupTask && (
-        <GroupTaskPanel agents={agents} onClose={() => setShowGroupTask(false)} />
+        <GroupTaskPanel
+          agents={agents}
+          onClose={() => setShowGroupTask(false)}
+        />
       )}
     </div>
   );
