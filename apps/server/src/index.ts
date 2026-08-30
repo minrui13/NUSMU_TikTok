@@ -1,10 +1,10 @@
-import path from "node:path";
 import { AgentService } from "./agent-service.js";
 import { createApp } from "./app.js";
 import { loadConfig, writeCodexConfig } from "./config.js";
 import { createRunner } from "./runner-factory.js";
 import { JsonStore } from "./store.js";
 import { WorkspaceManager } from "./workspace.js";
+import path from "node:path";
 
 const config = loadConfig();
 await writeCodexConfig(config);

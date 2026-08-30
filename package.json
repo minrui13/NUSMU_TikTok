@@ -17,10 +17,29 @@
     "test": "npm run test -w @launchpad/server",
     "check": "npm run typecheck && npm run test && npm run build",
     "poc": "./scripts/start-local-poc.sh",
-    "start": "npm run start -w @launchpad/server"
+    "start": "npm run start -w @launchpad/server",
+    "start:poc": "npx nodemon --watch src -e ts,js,json --exec \"npx eslint --fix && npx cross-env ARK_API_KEY=ollama ARK_MODEL=qwen2.5-coder:7b ARK_BASE_URL=http://host.docker.internal:11434/v1 bash scripts/start-local-poc.sh\""
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "concurrently": "^9.2.1",
-    "typescript": "^5.9.3"
+    "eslint": "^10.9.1",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-import-resolver-typescript": "^4.4.5",
+    "eslint-plugin-import-x": "^4.17.1",
+    "eslint-plugin-prettier": "^5.5.6",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-unused-imports": "^4.4.1",
+    "globals": "^17.11.0",
+    "jiti": "^2.7.0",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.68.0"
+  },
+  "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@mui/icons-material": "^9.4.0",
+    "@mui/material": "^9.4.0",
+    "@mui/styles": "^6.5.0"
   }
 }

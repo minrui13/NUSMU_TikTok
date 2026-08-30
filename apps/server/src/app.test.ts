@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
 import { createApp } from "./app.js";
 import { loadConfig } from "./config.js";
+import { describe, expect, it } from "vitest";
 import type { AgentService } from "./agent-service.js";
 
 const service = {
