@@ -1,3 +1,15 @@
+import { AuditDecision, AuditEvent } from "./types/audits.js";
+import type { Ability, Risk } from "./types/abilities.ts";
+
+export type RunStatus =
+  | "queued"
+  | "pending_approval"
+  | "running"
+  | "completed"
+  | "failed"
+  | "denied"
+  | "cancelled";
+
 export type AgentStatus = "ready" | "busy" | "stopped" | "error";
 export type RunStatus =
   | "queued"
@@ -5,6 +17,7 @@ export type RunStatus =
   | "completed"
   | "failed"
   | "cancelled";
+
 export type MessageRole = "user" | "assistant";
 
 export interface Agent {
@@ -16,6 +29,7 @@ export interface Agent {
   workspacePath: string;
   codexThreadId: string | null;
   lastError: string | null;
+  abilities: Record<Ability, boolean>;
   createdAt: string;
   updatedAt: string;
 }
@@ -38,8 +52,10 @@ export interface RunUsage {
 export interface AgentRun {
   id: string;
   agentId: string;
+  sessionId: string | null;
   status: RunStatus;
   prompt: string;
+  risk: Risk | null;
   output: string | null;
   error: string | null;
   usage: RunUsage | null;
@@ -107,12 +123,14 @@ export interface Database {
   runs: AgentRun[];
   immuneThreatEvents: ImmuneThreatEvent[];
   immuneMemories: ImmuneMemory[];
+  auditEvents: AuditEvent[];
 }
 
 export interface CreateAgentInput {
   name: string;
   description?: string | undefined;
   instructions?: string | undefined;
+  abilities?: Partial<Record<Ability, boolean>> | undefined;
 }
 
 export interface UpdateAgentInput {
@@ -138,4 +156,14 @@ export interface AgentRunner {
   run(request: RunnerRequest): Promise<RunnerResult>;
   cancel(agentId: string): Promise<boolean>;
   isAvailable(): Promise<boolean>;
+}
+
+export interface CoordinationEvent {
+  agentId: string;
+  sessionId: string | null;
+  action: string;
+  decision: AuditDecision;
+  reason: string | null;
+  risk: Risk | null;
+  prompt: string;
 }

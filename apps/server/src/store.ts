@@ -9,6 +9,7 @@ const emptyDatabase = (): Database => ({
   runs: [],
   immuneThreatEvents: [],
   immuneMemories: [],
+  auditEvents: [],
 });
 
 export class JsonStore {
@@ -29,6 +30,9 @@ export class JsonStore {
         ...parsed,
         immuneThreatEvents: Array.isArray(parsed.immuneThreatEvents) ? parsed.immuneThreatEvents : [],
         immuneMemories: Array.isArray(parsed.immuneMemories) ? parsed.immuneMemories : [],
+        auditEvents: Array.isArray(parsed.auditEvents)
+          ? parsed.auditEvents
+          : [],
       };
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
@@ -42,7 +46,9 @@ export class JsonStore {
     return structuredClone(this.data);
   }
 
-  async mutate<T>(mutation: (database: Database) => T | Promise<T>): Promise<T> {
+  async mutate<T>(
+    mutation: (database: Database) => T | Promise<T>,
+  ): Promise<T> {
     let result!: T;
     const operation = this.queue.then(async () => {
       const next = structuredClone(this.data);

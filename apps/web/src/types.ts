@@ -1,3 +1,5 @@
+import { Ability } from "./types/abilities";
+
 export type AgentStatus = "ready" | "busy" | "stopped" | "error";
 export type RunStatus =
   | "queued"
@@ -35,6 +37,7 @@ export interface Agent {
   workspacePath: string;
   codexThreadId: string | null;
   lastError: string | null;
+  abilities: Record<Ability, boolean>;
   createdAt: string;
   updatedAt: string;
 }
@@ -124,3 +127,5 @@ export interface ImmuneMemory {
   createdAt: string;
   updatedAt: string;
 }
+export type View = "playground" | "abilities" | "audit" | "approvals";
+

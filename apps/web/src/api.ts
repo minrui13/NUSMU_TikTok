@@ -1,3 +1,5 @@
+import { Ability, AbilityBody } from "./types/abilities";
+import { AuditEvent } from "./types/audits";
 import type { Agent, AgentRun, GroupTaskState, Message, SystemInfo, ImmuneThreatEvent, ImmuneMemory } from "./types";
 
 export class ApiError extends Error {
@@ -25,7 +27,9 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
     ...options,
     headers,
   });
-  const data = (await response.json().catch(() => ({}))) as T & { error?: string };
+  const data = (await response.json().catch(() => ({}))) as T & {
+    error?: string;
+  };
   if (!response.ok) {
     throw new ApiError(data.error ?? "Request failed", response.status);
   }
@@ -87,6 +91,22 @@ export const api = {
       "/api/immune/events/" + eventId + "/review",
       { method: "POST", body: JSON.stringify({ action }) },
     ),
+  approveRun: (id: string, body: { isApprove: boolean }) =>
+    request<{ run: AgentRun }>("/api/runs/" + id + "/approve", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  pendingApprovals: () =>
+    request<{ runs: AgentRun[] }>("/api/runs/pendingApprovals"),
+  auditEvents: () =>
+    request<{ events: AuditEvent[] }>("/api/agents/auditEvents"),
+  abilities: () =>
+    request<{ abilities: Record<Ability, boolean> }>("/api/abilities"),
+  updateAbilities: (id: string, body: AbilityBody) =>
+    request<{ agent: Agent }>("/api/agents/" + id + "/abilities", {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
   createGroupTask: (body: { description: string }) =>
     request<{ task: GroupTaskState }>("/api/group-tasks", {
       method: "POST",

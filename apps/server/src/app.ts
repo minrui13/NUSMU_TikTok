@@ -1,14 +1,16 @@
+import { HttpError } from "./errors.js";
+import { defaultAgentAbilities } from "./abilities/permissions.js";
+import { Ability } from "./types/abilities.js";
 import cors from "@fastify/cors";
 import fastifyStatic from "@fastify/static";
-import Fastify, { type FastifyInstance } from "fastify";
+import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
+import { z } from "zod";
 import { timingSafeEqual } from "node:crypto";
 import { fileURLToPath } from "node:url";
-import { z } from "zod";
-import type { AppConfig } from "./config.js";
-import { HttpError } from "./errors.js";
 import type { AgentService } from "./agent-service.js";
+import type { AppConfig } from "./config.js";
 import { getKnownSecrets, redactSecrets } from "./utils/redaction.js";
-import type { GroupTaskService } from "./group-task-service.js";  // add import
+import type { GroupTaskService } from "./group-task-service.js"; // add import
 
 const agentIdParams = z.object({ id: z.string().uuid() });
 const runIdParams = z.object({ id: z.string().uuid() });
@@ -23,13 +25,32 @@ const groupTaskIdParams = z.object({ id: z.string().uuid() });
 const createGroupTaskBody = z.object({
   description: z.string().trim().min(1).max(20_000),
 });
-const updateAgentBody = createAgentBody.partial().refine(
-  (value) => Object.keys(value).length > 0,
-  "At least one field is required",
-);
+const updateAgentBody = createAgentBody
+  .partial()
+  .refine(
+    (value) => Object.keys(value).length > 0,
+    "At least one field is required",
+  );
 const messageBody = z.object({
   content: z.string().trim().min(1).max(50_000),
 });
+const abilitiesBody = z.object({
+  canReadWorkspace: z.boolean().optional(),
+  canWriteWorkspace: z.boolean().optional(),
+  canRunCommand: z.boolean().optional(),
+  canAccessSecrets: z.boolean().optional(),
+  canUseNetwork: z.boolean().optional(),
+  canJoinSession: z.boolean().optional(),
+});
+
+const approvalBody = z.object({ isApprove: z.boolean() });
+
+function getUserId(request: FastifyRequest): string {
+  const header = request.headers["x-user-id"];
+  return typeof header === "string" && header.trim()
+    ? header.trim()
+    : "anonymous";
+}
 
 export async function createApp(
   config: AppConfig,
@@ -128,7 +149,8 @@ export async function createApp(
   app.post("/api/agents/:id/messages", async (request, reply) => {
     const { id } = agentIdParams.parse(request.params);
     const body = messageBody.parse(request.body);
-    const result = await service.sendMessage(id, body.content);
+    const userId = getUserId(request);
+    const result = await service.sendMessage(id, body.content, userId);
     return reply.code(202).send(result);
   });
 
@@ -153,14 +175,53 @@ export async function createApp(
     return service.reviewImmuneEvent(id, body.action);
   });
   app.post("/api/group-tasks", async (request, reply) => {
-  const body = createGroupTaskBody.parse(request.body);
-  const task = groupTaskService.createTask(body.description);
-  return reply.code(201).send({ task });
-});
+    const body = createGroupTaskBody.parse(request.body);
+    const userId = getUserId(request);
+    const task = groupTaskService.createTask(body.description, userId);
+    return reply.code(201).send({ task });
+  });
 
   app.get("/api/group-tasks/:id", async (request) => {
     const { id } = groupTaskIdParams.parse(request.params);
     return { task: groupTaskService.getTask(id) };
+  });
+
+  // Get all abilities
+  app.get("/api/abilities", async () => {
+    return {
+      abilities: defaultAgentAbilities,
+    };
+  });
+
+  // Updates the permission of a specified Agent.
+  app.patch("/api/agents/:id/abilities", async (request) => {
+    const { id } = agentIdParams.parse(request.params);
+    const body = abilitiesBody.parse(request.body);
+
+    const patch = Object.fromEntries(
+      Object.entries(body).filter(([, value]) => value !== undefined),
+    ) as Partial<Record<Ability, boolean>>;
+
+    const userId = getUserId(request);
+    return { agent: await service.updateAbilities(id, patch, userId) };
+  });
+
+  // Shows the audit history for a specified Agent
+  // Each event records who performed the action, which Agent was affected,
+  // whether the policy allowed or denied it, and the reason for the decision.
+  app.get("/api/agents/auditEvents", async (request) => {
+    return { events: service.getAuditEvents() };
+  });
+
+  app.post("/api/runs/:id/approve", async (request) => {
+    const { id } = runIdParams.parse(request.params);
+    const body = approvalBody.parse(request.body);
+    const userId = getUserId(request);
+    return { run: await service.approveRun(id, userId, body.isApprove) };
+  });
+
+  app.get("/api/runs/pendingApprovals", async () => {
+    return { runs: service.getPendingApprovals() };
   });
 
   if (config.nodeEnv === "production") {
