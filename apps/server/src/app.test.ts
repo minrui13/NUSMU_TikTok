@@ -2,17 +2,28 @@ import { describe, expect, it } from "vitest";
 import { createApp } from "./app.js";
 import { loadConfig } from "./config.js";
 import type { AgentService } from "./agent-service.js";
+import type { GroupTaskService } from "./group-task-service.js"; 
 
 const service = {
   listAgents: () => [],
   systemInfo: async () => ({}),
 } as unknown as AgentService;
 
+const groupTaskService = {  // add
+  createTask: () => {
+    throw new Error("not used in this test");
+  },
+  getTask: () => {
+    throw new Error("not used in this test");
+  },
+} as unknown as GroupTaskService;
+
 describe("HTTP boundary", () => {
   it("protects API routes with the configured shared token", async () => {
     const app = await createApp(
       loadConfig({ NODE_ENV: "test", APP_AUTH_TOKEN: "a-strong-test-token" }),
       service,
+      groupTaskService,
     );
     const denied = await app.inject({ method: "GET", url: "/api/agents" });
     expect(denied.statusCode).toBe(401);

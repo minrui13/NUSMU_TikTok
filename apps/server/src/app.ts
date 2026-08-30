@@ -8,6 +8,7 @@ import type { AppConfig } from "./config.js";
 import { HttpError } from "./errors.js";
 import type { AgentService } from "./agent-service.js";
 import { getKnownSecrets, redactSecrets } from "./utils/redaction.js";
+import type { GroupTaskService } from "./group-task-service.js";  // add import
 
 const agentIdParams = z.object({ id: z.string().uuid() });
 const runIdParams = z.object({ id: z.string().uuid() });
@@ -15,6 +16,10 @@ const createAgentBody = z.object({
   name: z.string().trim().min(1).max(80),
   description: z.string().max(500).optional(),
   instructions: z.string().max(10_000).optional(),
+});
+const groupTaskIdParams = z.object({ id: z.string().uuid() });
+const createGroupTaskBody = z.object({
+  description: z.string().trim().min(1).max(20_000),
 });
 const updateAgentBody = createAgentBody.partial().refine(
   (value) => Object.keys(value).length > 0,
@@ -27,6 +32,7 @@ const messageBody = z.object({
 export async function createApp(
   config: AppConfig,
   service: AgentService,
+  groupTaskService: GroupTaskService,
 ): Promise<FastifyInstance> {
   const app = Fastify({
     logger: {
@@ -127,6 +133,16 @@ export async function createApp(
   app.get("/api/runs/:id", async (request) => {
     const { id } = runIdParams.parse(request.params);
     return { run: service.getRun(id) };
+  });
+  app.post("/api/group-tasks", async (request, reply) => {
+  const body = createGroupTaskBody.parse(request.body);
+  const task = groupTaskService.createTask(body.description);
+  return reply.code(201).send({ task });
+});
+
+  app.get("/api/group-tasks/:id", async (request) => {
+    const { id } = groupTaskIdParams.parse(request.params);
+    return { task: groupTaskService.getTask(id) };
   });
 
   if (config.nodeEnv === "production") {
