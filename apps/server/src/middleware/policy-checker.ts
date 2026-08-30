@@ -1,4 +1,5 @@
-import { type Ability, type Risk, abilityRisk } from "./permissions.js";
+import { abilityRisk } from "./permissions.js";
+import { Ability, Risk } from "../types/abilities.js";
 
 export type Decision = "allowed" | "denied" | "pending_approval";
 
@@ -30,7 +31,7 @@ export function checkAbility(
   const risk = abilityRisk[ability];
   const granted = grantedAbilities.includes(ability);
 
-  if (granted) {
+  if (granted && (risk === "low" || risk === "medium")) {
     return {
       ability,
       risk,
@@ -39,7 +40,7 @@ export function checkAbility(
     };
   }
 
-  if (risk === "high" || risk === "critical") {
+  if (granted && (risk === "high" || risk === "critical")) {
     return {
       ability,
       risk,
@@ -47,12 +48,13 @@ export function checkAbility(
       reason: `${ability} (${risk} risk) requires human approval`,
     };
   }
-
   return {
     ability,
     risk,
     decision: "denied",
-    reason: `${ability} (${risk} risk) is not permitted`,
+    reason: granted
+      ? `${ability} (${risk} risk) is not permitted` // Should not happen given the logic above, but just in case
+      : `${ability} is not granted to this Agent`,
   };
 }
 

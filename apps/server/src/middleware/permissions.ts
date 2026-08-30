@@ -1,16 +1,4 @@
-export type Ability =
-  // Allows Agent to inspect files in its workspace
-  | "canReadWorkspace"
-  // Allows Agent to create, edit or delete workspace files
-  | "canWriteWorkspace"
-  // Allows Agent to execute shell commands such as tests, builds or package installation
-  | "canRunCommand"
-  // Allows Agent to read sensitive values such as API keys, tokens, passwords, or .env files
-  | "canAccessSecrets"
-  // Allows Agent to access the internet or external services.
-  | "canUseNetwork"
-  // Allows Agent to join session
-  | "canJoinSession";
+import { Ability, Risk } from "../types/abilities.js";
 
 // Default abilities settings for each agent
 export const defaultAgentAbilities: Record<Ability, boolean> = {
@@ -44,8 +32,6 @@ const patterns: Array<{ ability: Ability; pattern: RegExp }> = [
     pattern: /\b(fetch|download|curl|http|install from|clone)\b/i,
   },
 ];
-
-export type Risk = "low" | "medium" | "high" | "critical";
 
 // Risk Level of each ability
 export const abilityRisk: Record<Ability, Risk> = {

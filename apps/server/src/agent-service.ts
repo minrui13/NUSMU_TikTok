@@ -1,7 +1,6 @@
 import { isArkConfigured } from "./config.js";
 import { HttpError, RunCancelledError } from "./errors.js";
 import {
-  type Ability,
   classifyAction,
   defaultAgentAbilities,
 } from "./middleware/permissions.js";
@@ -12,6 +11,8 @@ import {
 } from "./middleware/policy-checker.js";
 import { JsonStore } from "./store.js";
 
+import { Ability } from "./types/abilities.js";
+import { AuditEntry } from "./types/audits.js";
 import { WorkspaceManager } from "./workspace.js";
 import { randomUUID } from "node:crypto";
 import type { AppConfig } from "./config.js";
@@ -19,7 +20,6 @@ import type {
   Agent,
   AgentRun,
   AgentRunner,
-  AuditEntry,
   CoordinationEvent,
   CreateAgentInput,
   Message,
@@ -202,6 +202,7 @@ export class AgentService {
       agentId,
       sessionId,
       status: "queued",
+      risk: null,
       prompt,
       output: null,
       error: null,
@@ -257,6 +258,7 @@ export class AgentService {
         risk: result.risk,
         decision: result.decision,
         reason: result.reason,
+        prompt: run.prompt,
       });
     }
     const decision = overallDecision(results);
@@ -286,6 +288,7 @@ export class AgentService {
 
         if (storedRun) {
           storedRun.status = "pending_approval";
+          storedRun.risk = pending.risk;
           storedRun.error = pending.reason;
         }
       });
@@ -330,17 +333,16 @@ export class AgentService {
       risk: null,
       decision: "allowed",
       reason: null,
+      prompt: null,
     });
     return updated;
   }
 
   // Get all Audit Events of the specified agent
-  getAuditEvents(agentId: string) {
-    this.getAgent(agentId);
+  getAuditEvents() {
     return this.store
       .snapshot()
-      .auditEvents.filter((event) => event.agentId === agentId)
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      .auditEvents.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
 
   async systemInfo(): Promise<Record<string, unknown>> {
@@ -488,6 +490,7 @@ export class AgentService {
       risk: entry.risk,
       decision: entry.decision,
       reason: entry.reason,
+      prompt: entry.prompt,
     });
   }
 
@@ -538,6 +541,7 @@ export class AgentService {
       reason: grant
         ? "Approved by " + approverUserId
         : "Denied by " + approverUserId,
+      prompt: run.prompt,
     });
 
     if (!grant) {
