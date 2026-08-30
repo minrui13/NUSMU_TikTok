@@ -1,5 +1,5 @@
 import { HttpError } from "./errors.js";
-import { defaultAgentAbilities } from "./middleware/permissions.js";
+import { defaultAgentAbilities } from "./abilities/permissions.js";
 import { Ability } from "./types/abilities.js";
 import cors from "@fastify/cors";
 import fastifyStatic from "@fastify/static";

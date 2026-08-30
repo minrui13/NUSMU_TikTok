@@ -3,12 +3,12 @@ import { HttpError, RunCancelledError } from "./errors.js";
 import {
   classifyAction,
   defaultAgentAbilities,
-} from "./middleware/permissions.js";
+} from "./abilities/permissions.js";
 import {
   checkAbility,
   evaluateAction,
   overallDecision,
-} from "./middleware/policy-checker.js";
+} from "./abilities/policy-checker.js";
 import { JsonStore } from "./store.js";
 
 import { Ability } from "./types/abilities.js";
