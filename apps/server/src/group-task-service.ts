@@ -1,6 +1,9 @@
 import { HttpError } from "./errors.js";
 import type { AgentService } from "./agent-service.js";
-import { GroupTaskCoordinator, type GroupTaskState } from "./group-task-coordinator.js";
+import {
+  GroupTaskCoordinator,
+  type GroupTaskState,
+} from "./group-task-coordinator.js";
 import { parseMentionedAgents } from "./mention-parser.js";
 
 export class GroupTaskService {
@@ -8,7 +11,7 @@ export class GroupTaskService {
 
   constructor(private readonly agentService: AgentService) {}
 
-  createTask(description: string): GroupTaskState {
+  createTask(description: string, userId: string): GroupTaskState {
     const knownAgents = this.agentService
       .listAgents()
       .map((agent) => ({ id: agent.id, name: agent.name }));
@@ -21,7 +24,12 @@ export class GroupTaskService {
       );
     }
 
-    const coordinator = new GroupTaskCoordinator(this.agentService, description, participants);
+    const coordinator = new GroupTaskCoordinator(
+      this.agentService,
+      description,
+      participants,
+      userId,
+    );
     const initialState = coordinator.getState();
     this.tasks.set(initialState.id, coordinator);
 
