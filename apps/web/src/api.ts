@@ -89,8 +89,8 @@ export const api = {
     }),
   pendingApprovals: () =>
     request<{ runs: AgentRun[] }>("/api/runs/pendingApprovals"),
-  auditEvents: (id: string) =>
-    request<{ events: AuditEvent[] }>("/api/agents/" + id + "/auditEvents"),
+  auditEvents: () =>
+    request<{ events: AuditEvent[] }>("/api/agents/auditEvents"),
   abilities: () =>
     request<{ abilities: Record<Ability, boolean> }>("/api/abilities"),
   updateAbilities: (id: string, body: AbilityBody) =>

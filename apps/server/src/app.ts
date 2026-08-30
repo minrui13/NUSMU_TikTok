@@ -1,8 +1,6 @@
 import { HttpError } from "./errors.js";
-import {
-  type Ability,
-  defaultAgentAbilities,
-} from "./middleware/permissions.js";
+import { defaultAgentAbilities } from "./middleware/permissions.js";
+import { Ability } from "./types/abilities.js";
 import cors from "@fastify/cors";
 import fastifyStatic from "@fastify/static";
 import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
@@ -12,7 +10,7 @@ import { fileURLToPath } from "node:url";
 import type { AgentService } from "./agent-service.js";
 import type { AppConfig } from "./config.js";
 import { getKnownSecrets, redactSecrets } from "./utils/redaction.js";
-import type { GroupTaskService } from "./group-task-service.js";  // add import
+import type { GroupTaskService } from "./group-task-service.js"; // add import
 
 const agentIdParams = z.object({ id: z.string().uuid() });
 const runIdParams = z.object({ id: z.string().uuid() });
@@ -25,10 +23,12 @@ const groupTaskIdParams = z.object({ id: z.string().uuid() });
 const createGroupTaskBody = z.object({
   description: z.string().trim().min(1).max(20_000),
 });
-const updateAgentBody = createAgentBody.partial().refine(
-  (value) => Object.keys(value).length > 0,
-  "At least one field is required",
-);
+const updateAgentBody = createAgentBody
+  .partial()
+  .refine(
+    (value) => Object.keys(value).length > 0,
+    "At least one field is required",
+  );
 const messageBody = z.object({
   content: z.string().trim().min(1).max(50_000),
 });
@@ -157,10 +157,11 @@ export async function createApp(
     return { run: service.getRun(id) };
   });
   app.post("/api/group-tasks", async (request, reply) => {
-  const body = createGroupTaskBody.parse(request.body);
-  const task = groupTaskService.createTask(body.description);
-  return reply.code(201).send({ task });
-});
+    const body = createGroupTaskBody.parse(request.body);
+    const userId = getUserId(request);
+    const task = groupTaskService.createTask(body.description, userId);
+    return reply.code(201).send({ task });
+  });
 
   app.get("/api/group-tasks/:id", async (request) => {
     const { id } = groupTaskIdParams.parse(request.params);
@@ -190,9 +191,8 @@ export async function createApp(
   // Shows the audit history for a specified Agent
   // Each event records who performed the action, which Agent was affected,
   // whether the policy allowed or denied it, and the reason for the decision.
-  app.get("/api/agents/:id/auditEvents", async (request) => {
-    const { id } = agentIdParams.parse(request.params);
-    return { events: service.getAuditEvents(id) };
+  app.get("/api/agents/auditEvents", async (request) => {
+    return { events: service.getAuditEvents() };
   });
 
   app.post("/api/runs/:id/approve", async (request) => {

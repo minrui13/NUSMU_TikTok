@@ -1,6 +1,6 @@
-import type { Ability, Risk } from "./middleware/permissions.ts";
+import { AuditDecision, AuditEvent } from "./types/audits.js";
+import type { Ability, Risk } from "./types/abilities.ts";
 
-export type AgentStatus = "ready" | "busy" | "stopped" | "error";
 export type RunStatus =
   | "queued"
   | "pending_approval"
@@ -9,10 +9,10 @@ export type RunStatus =
   | "failed"
   | "denied"
   | "cancelled";
-export type MessageRole = "user" | "assistant";
 
-export type AuditDecision = "allowed" | "denied" | "pending_approval";
-export type AuditActor = "human" | "agent" | "system";
+export type AgentStatus = "ready" | "busy" | "stopped" | "error";
+
+export type MessageRole = "user" | "assistant";
 
 export interface Agent {
   id: string;
@@ -49,6 +49,7 @@ export interface AgentRun {
   sessionId: string | null;
   status: RunStatus;
   prompt: string;
+  risk: Risk | null;
   output: string | null;
   error: string | null;
   usage: RunUsage | null;
@@ -97,19 +98,6 @@ export interface AgentRunner {
   isAvailable(): Promise<boolean>;
 }
 
-export interface AuditEvent {
-  id: string;
-  userId: string;
-  agentId: string;
-  runId: string | null;
-  actor: AuditActor;
-  action: string;
-  risk: Risk | null;
-  decision: AuditDecision;
-  reason: string | null;
-  createdAt: string;
-}
-
 export interface CoordinationEvent {
   agentId: string;
   sessionId: string | null;
@@ -117,18 +105,5 @@ export interface CoordinationEvent {
   decision: AuditDecision;
   reason: string | null;
   risk: Risk | null;
+  prompt: string;
 }
-
-export interface AuditEntry {
-  userId: string;
-  agentId: string;
-  runId: string | null;
-  sessionId: string | null;
-  actor: AuditActor;
-  action: string;
-  risk: Risk | null;
-  decision: AuditDecision;
-  reason: string | null;
-}
-
-
