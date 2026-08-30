@@ -1,5 +1,10 @@
 export type AgentStatus = "ready" | "busy" | "stopped" | "error";
-export type RunStatus = "queued" | "running" | "completed" | "failed" | "cancelled";
+export type RunStatus =
+  | "queued"
+  | "running"
+  | "completed"
+  | "failed"
+  | "cancelled";
 export type GroupTaskStatus = "running" | "completed" | "failed";
 
 export interface GroupTaskTurn {
@@ -82,12 +87,23 @@ export interface ImmuneThreatEvent {
   agentId: string;
   runId: string;
   promptExcerpt: string;
+
   score: number;
+  baseScore?: number;
+  memoryAdjustment: number;
+
   decision: "allow" | "review" | "deny";
   categories: ImmuneThreatCategory[];
   reasons: string[];
+
+  scoreBreakdown?: {
+    label: string;
+    score: number;
+  }[];
+
   matchedMemoryIds: string[];
   learnedMatch: boolean;
+
   reviewStatus: "pending" | "confirmed" | "dismissed";
   createdAt: string;
   reviewedAt: string | null;

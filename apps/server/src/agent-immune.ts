@@ -10,11 +10,40 @@ const now = () => new Date().toISOString();
 const CATEGORY_LABELS: Record<ImmuneThreatCategory, string> = {
   prompt_injection: "Prompt injection",
   credential_access: "Credential access",
+  sensitive_resource: "Sensitive resource access",
   data_exfiltration: "Data exfiltration",
   destructive_action: "Destructive action",
   workspace_escape: "Workspace escape",
   suspicious_network: "Suspicious network access",
+  privilege_escalation: "Privilege escalation",
 };
+
+const TOKEN_ALIASES: Record<string, string> = {
+  previous: "prior",
+  above: "prior",
+  read: "access",
+  open: "access",
+  retrieve: "access",
+  sending: "send",
+  sent: "send",
+  transmit: "send",
+  transmitted: "send",
+  upload: "send",
+  uploaded: "send",
+};
+
+const IGNORED_TOKENS = new Set([
+  "this",
+  "that",
+  "with",
+  "from",
+  "into",
+  "your",
+  "then",
+  "please",
+  "before",
+  "another",
+]);
 
 const normalize = (value: string) =>
   value
@@ -31,7 +60,8 @@ const tokens = (value: string) =>
     normalize(value)
       .split(" ")
       .filter((token) => token.length >= 4)
-      .filter((token) => !["this", "that", "with", "from", "into", "your", "then", "please"].includes(token)),
+      .filter((token) => !IGNORED_TOKENS.has(token))
+      .map((token) => TOKEN_ALIASES[token] ?? token),
   );
 
 function similarity(left: string, right: string): number {
@@ -45,129 +75,327 @@ function similarity(left: string, right: string): number {
 
 export interface ImmuneAssessment {
   score: number;
+  baseScore: number;
+  memoryAdjustment: number;
   decision: "allow" | "review" | "deny";
   categories: ImmuneThreatCategory[];
   reasons: string[];
+  scoreBreakdown: {
+    label: string;
+    score: number;
+  }[];
   matchedMemoryIds: string[];
   learnedMatch: boolean;
 }
 
 export class AgentImmuneEngine {
   assess(prompt: string, memories: ImmuneMemory[]): ImmuneAssessment {
-    const value = prompt.toLowerCase();
     const categories = new Set<ImmuneThreatCategory>();
     const reasons: string[] = [];
-    let score = 0;
+    const scoreBreakdown: { label: string; score: number }[] = [];
+
+    let baseScore = 0;
+
+    const addSignal = (
+      score: number,
+      category: ImmuneThreatCategory,
+      label: string,
+      reason: string,
+    ) => {
+      baseScore += score;
+      categories.add(category);
+      reasons.push(reason);
+
+      scoreBreakdown.push({
+        label,
+        score,
+      });
+    };
+
+    // ---------------------------------------------------------
+    // 1. PROMPT INJECTION
+    // ---------------------------------------------------------
 
     const injection = [
       /ignore (all |any |the )?(previous|prior|above) instructions?/i,
       /disregard (all |any |the )?(previous|prior|above) instructions?/i,
+      /forget (all |any |the )?(previous|prior|earlier) instructions?/i,
+      /override (the )?(system|developer|previous) instructions?/i,
+      /hidden instructions?/i,
       /system (message|prompt|instruction)/i,
       /do not tell (the )?(user|operator)/i,
-      /hidden instructions?/i,
     ].some((pattern) => pattern.test(prompt));
+
     if (injection) {
-      score += 38;
-      categories.add("prompt_injection");
-      reasons.push("Prompt contains instruction-override language commonly used in prompt injection.");
+      addSignal(
+        22,
+        "prompt_injection",
+        "Instruction override",
+        "Prompt contains language attempting to override or replace existing Agent instructions.",
+      );
     }
 
-    const credential = [
+    // ---------------------------------------------------------
+    // 2. SENSITIVE RESOURCE
+    // ---------------------------------------------------------
+
+    const sensitiveResource = [
       /\.env\b/i,
       /credentials?\.json/i,
+      /\.ssh\b/i,
+      /id_rsa/i,
+      /id_ed25519/i,
+      /secrets?\.json/i,
+      /config.*secret/i,
+      /environment variables?/i,
+      /runtime configuration/i,
+    ].some((pattern) => pattern.test(prompt));
+
+    if (sensitiveResource) {
+      addSignal(
+        18,
+        "sensitive_resource",
+        "Sensitive resource",
+        "Prompt references a file or configuration location commonly containing sensitive information.",
+      );
+    }
+
+    // ---------------------------------------------------------
+    // 3. CREDENTIAL ACCESS
+    // ---------------------------------------------------------
+
+    const credential = [
       /api[_ -]?key/i,
       /access[_ -]?token/i,
+      /auth(?:entication)?[_ -]?token/i,
       /secret[_ -]?key/i,
       /private[_ -]?key/i,
-      /password file/i,
+      /password/i,
+      /credential/i,
+      /bearer token/i,
     ].some((pattern) => pattern.test(prompt));
+
     if (credential) {
-      score += 34;
-      categories.add("credential_access");
-      reasons.push("Prompt requests or references sensitive credential material.");
+      addSignal(
+        25,
+        "credential_access",
+        "Credential request",
+        "Prompt requests or references authentication credentials, tokens, passwords, or keys.",
+      );
     }
+
+    // ---------------------------------------------------------
+    // 4. DATA EXFILTRATION
+    // ---------------------------------------------------------
 
     const exfiltration = [
       /send .* to https?:\/\//i,
+      /transmit .* to https?:\/\//i,
       /upload .* to /i,
       /post .* to /i,
+      /forward .* to https?:\/\//i,
       /exfiltrat/i,
-      /webhook/i,
+      /send .* webhook/i,
       /curl\s+.*https?:\/\//i,
     ].some((pattern) => pattern.test(prompt));
+
     if (exfiltration) {
-      score += 34;
-      categories.add("data_exfiltration");
-      reasons.push("Prompt asks to transmit data to an external destination.");
+      addSignal(
+        20,
+        "data_exfiltration",
+        "External data transmission",
+        "Prompt requests transmitting information to an external destination.",
+      );
     }
 
-    const destructive = [
-      /rm\s+-rf\s+(\/|~|\.\.)/i,
-      /delete (all|everything)/i,
-      /format (the )?(disk|drive)/i,
-      /drop\s+(database|table)/i,
-      /remove .* outside .*workspace/i,
-    ].some((pattern) => pattern.test(prompt));
-    if (destructive) {
-      score += 72;
-      categories.add("destructive_action");
-      reasons.push("Prompt requests a destructive or broad irreversible operation.");
-    }
-
-    const escape = [
-      /outside (the )?workspace/i,
-      /\.\.\//,
-      /\/etc\//i,
-      /~\/\.ssh/i,
-      /c:\\windows\\/i,
-    ].some((pattern) => pattern.test(prompt));
-    if (escape) {
-      score += 28;
-      categories.add("workspace_escape");
-      reasons.push("Prompt attempts to reach files or paths outside the Agent workspace.");
-    }
+    // ---------------------------------------------------------
+    // 5. SUSPICIOUS NETWORK ACCESS
+    // ---------------------------------------------------------
 
     const suspiciousNetwork = [
       /unknown[- ]?(domain|host)/i,
       /requestbin/i,
       /ngrok/i,
       /webhook\.site/i,
+      /evil\.example/i,
     ].some((pattern) => pattern.test(prompt));
+
     if (suspiciousNetwork) {
-      score += 26;
-      categories.add("suspicious_network");
-      reasons.push("Prompt references a destination commonly used for ad-hoc external transfer.");
-    }
-
-    if (credential && exfiltration) {
-      score += 24;
-      reasons.push("Credential access combined with external transfer is treated as a high-risk chain.");
-    }
-
-    const matchedMemoryIds: string[] = [];
-    let strongestMemorySimilarity = 0;
-    for (const memory of memories) {
-      if (!memory.autoBlock || memory.status !== "active") continue;
-      const match = similarity(prompt, memory.fingerprint);
-      if (match >= 0.55) {
-        matchedMemoryIds.push(memory.id);
-        strongestMemorySimilarity = Math.max(strongestMemorySimilarity, match);
-      }
-    }
-    if (matchedMemoryIds.length) {
-      score += 35;
-      reasons.push(
-        `Immune Memory matched a previously confirmed threat (${Math.round(strongestMemorySimilarity * 100)}% token overlap).`,
+      addSignal(
+        12,
+        "suspicious_network",
+        "Suspicious network destination",
+        "Prompt references an untrusted or ad-hoc external destination.",
       );
     }
 
-    score = Math.min(100, score);
-    const decision = score >= 70 ? "deny" : score >= 45 ? "review" : "allow";
+    // ---------------------------------------------------------
+    // 6. WORKSPACE ESCAPE
+    // ---------------------------------------------------------
+
+    const workspaceEscape = [
+      /outside (the )?workspace/i,
+      /\.\.\//,
+      /\.\.\\/,
+      /\/etc\//i,
+      /~\/\.ssh/i,
+      /c:\\windows\\/i,
+      /c:\\users\\/i,
+    ].some((pattern) => pattern.test(prompt));
+
+    if (workspaceEscape) {
+      addSignal(
+        25,
+        "workspace_escape",
+        "Workspace boundary violation",
+        "Prompt attempts to access a path outside the Agent's assigned workspace.",
+      );
+    }
+
+    // ---------------------------------------------------------
+    // 7. DESTRUCTIVE OPERATIONS
+    // ---------------------------------------------------------
+
+    const destructive = [
+      /rm\s+-rf/i,
+      /delete (all|everything|every file)/i,
+      /remove (all|everything|every file)/i,
+      /format (the )?(disk|drive)/i,
+      /drop\s+(database|table)/i,
+      /wipe (the )?(disk|workspace|filesystem)/i,
+      /destroy (all|everything)/i,
+    ].some((pattern) => pattern.test(prompt));
+
+    if (destructive) {
+      addSignal(
+        30,
+        "destructive_action",
+        "Destructive operation",
+        "Prompt requests a broad or potentially irreversible destructive action.",
+      );
+    }
+
+    // ---------------------------------------------------------
+    // 8. PRIVILEGE ESCALATION / SECURITY BYPASS
+    // ---------------------------------------------------------
+
+    const privilegeEscalation = [
+      /disable (the )?sandbox/i,
+      /bypass (the )?(sandbox|security|restriction|policy)/i,
+      /administrator privileges?/i,
+      /run as administrator/i,
+      /run as root/i,
+      /sudo\s+/i,
+      /elevate privileges?/i,
+      /disable security/i,
+    ].some((pattern) => pattern.test(prompt));
+
+    if (privilegeEscalation) {
+      addSignal(
+        30,
+        "privilege_escalation",
+        "Privilege escalation",
+        "Prompt attempts to bypass security controls or obtain elevated privileges.",
+      );
+    }
+
+    // ---------------------------------------------------------
+    // COMBINATION SIGNALS
+    // ---------------------------------------------------------
+
+    if (credential && exfiltration) {
+      baseScore += 10;
+
+      reasons.push(
+        "Credential access combined with external transmission increases the likelihood of credential exfiltration.",
+      );
+
+      scoreBreakdown.push({
+        label: "Credential + exfiltration chain",
+        score: 10,
+      });
+    }
+
+    if (workspaceEscape && sensitiveResource) {
+      baseScore += 8;
+
+      reasons.push(
+        "Sensitive resource access outside the workspace increases the severity of the request.",
+      );
+
+      scoreBreakdown.push({
+        label: "Sensitive workspace escape",
+        score: 8,
+      });
+    }
+
+    // Do not let static rules immediately dominate the whole score.
+    baseScore = Math.min(baseScore, 90);
+
+    // ---------------------------------------------------------
+    // IMMUNE MEMORY
+    // ---------------------------------------------------------
+
+    const matchedMemoryIds: string[] = [];
+    let strongestMemorySimilarity = 0;
+    let strongestMemoryConfidence = 0;
+
+    for (const memory of memories) {
+      if (!memory.autoBlock || memory.status !== "active") {
+        continue;
+      }
+
+      const match = similarity(prompt, memory.fingerprint);
+
+      if (match >= 0.55) {
+        matchedMemoryIds.push(memory.id);
+
+        if (match > strongestMemorySimilarity) {
+          strongestMemorySimilarity = match;
+          strongestMemoryConfidence = memory.confidence;
+        }
+      }
+    }
+
+    let memoryAdjustment = 0;
+
+    if (matchedMemoryIds.length > 0) {
+      // Similarity and historical confidence determine how much
+      // previously learned evidence affects this run.
+      memoryAdjustment = Math.round(
+        strongestMemorySimilarity * strongestMemoryConfidence * 25,
+      );
+
+      reasons.push(
+        `Immune Memory matched a previously confirmed threat (${Math.round(
+          strongestMemorySimilarity * 100,
+        )}% similarity, ${Math.round(
+          strongestMemoryConfidence * 100,
+        )}% memory confidence).`,
+      );
+
+      scoreBreakdown.push({
+        label: "Immune Memory",
+        score: memoryAdjustment,
+      });
+    }
+
+    const score = Math.min(100, baseScore + memoryAdjustment);
+
+    // ---------------------------------------------------------
+    // DECISION BANDS
+    // ---------------------------------------------------------
+
+    const decision = score >= 70 ? "deny" : score >= 50 ? "review" : "allow";
+
     return {
       score,
+      baseScore,
+      memoryAdjustment,
       decision,
       categories: [...categories],
       reasons,
+      scoreBreakdown,
       matchedMemoryIds,
       learnedMatch: matchedMemoryIds.length > 0,
     };
@@ -184,12 +412,19 @@ export class AgentImmuneEngine {
       agentId: input.agentId,
       runId: input.runId,
       promptExcerpt: input.prompt.slice(0, 500),
+
       score: input.assessment.score,
+      baseScore: input.assessment.baseScore,
+      memoryAdjustment: input.assessment.memoryAdjustment,
+
       decision: input.assessment.decision,
       categories: input.assessment.categories,
       reasons: input.assessment.reasons,
+      scoreBreakdown: input.assessment.scoreBreakdown,
+
       matchedMemoryIds: input.assessment.matchedMemoryIds,
       learnedMatch: input.assessment.learnedMatch,
+
       reviewStatus: "pending",
       createdAt: now(),
       reviewedAt: null,
@@ -200,13 +435,18 @@ export class AgentImmuneEngine {
     const category = event.categories[0] ?? "prompt_injection";
     const fingerprint = normalize(event.promptExcerpt);
     const existing = memories.find(
-      (memory) => memory.category === category && similarity(memory.fingerprint, fingerprint) >= 0.7,
+      (memory) =>
+        memory.category === category &&
+        similarity(memory.fingerprint, fingerprint) >= 0.7,
     );
     const timestamp = now();
     if (existing) {
       existing.confirmations += 1;
       existing.detections += 1;
-      existing.confidence = Math.min(0.99, 0.65 + existing.confirmations * 0.12);
+      existing.confidence = Math.min(
+        0.95,
+        0.55 + existing.confirmations * 0.1 - existing.dismissals * 0.12,
+      );
       existing.autoBlock = existing.confirmations >= 1;
       existing.updatedAt = timestamp;
       existing.status = "active";

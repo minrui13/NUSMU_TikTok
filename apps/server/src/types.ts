@@ -1,5 +1,10 @@
 export type AgentStatus = "ready" | "busy" | "stopped" | "error";
-export type RunStatus = "queued" | "running" | "completed" | "failed" | "cancelled";
+export type RunStatus =
+  | "queued"
+  | "running"
+  | "completed"
+  | "failed"
+  | "cancelled";
 export type MessageRole = "user" | "assistant";
 
 export interface Agent {
@@ -43,16 +48,22 @@ export interface AgentRun {
   createdAt: string;
 }
 
-
 export type ImmuneThreatCategory =
   | "prompt_injection"
   | "credential_access"
+  | "sensitive_resource"
   | "data_exfiltration"
   | "destructive_action"
   | "workspace_escape"
-  | "suspicious_network";
+  | "suspicious_network"
+  | "privilege_escalation";
 export type ImmuneDecision = "allow" | "review" | "deny";
 export type ImmuneReviewStatus = "pending" | "confirmed" | "dismissed";
+
+export interface ImmuneScoreSignal {
+  label: string;
+  score: number;
+}
 
 export interface ImmuneThreatEvent {
   id: string;
@@ -60,9 +71,12 @@ export interface ImmuneThreatEvent {
   runId: string;
   promptExcerpt: string;
   score: number;
+  baseScore: number;
+  memoryAdjustment: number;
   decision: ImmuneDecision;
   categories: ImmuneThreatCategory[];
   reasons: string[];
+  scoreBreakdown: ImmuneScoreSignal[];
   matchedMemoryIds: string[];
   learnedMatch: boolean;
   reviewStatus: ImmuneReviewStatus;
