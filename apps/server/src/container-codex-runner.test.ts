@@ -4,6 +4,7 @@ import {
   buildContainerRunArgs,
   containerName,
 } from "./container-codex-runner.js";
+import path from "node:path";
 
 describe("Container Codex runner", () => {
   it("builds an isolated Docker/Podman-compatible invocation", () => {
@@ -33,7 +34,7 @@ describe("Container Codex runner", () => {
     );
     expect(args).toContain("runtime:test");
     expect(args).toContain("type=bind,src=/tmp/agent-workspace,dst=/workspace");
-    expect(args).toContain("type=bind,src=/tmp/codex-home,dst=/codex-home");
+    expect(args).toContain(`type=bind,src=${path.resolve("/tmp/codex-home")},dst=/codex-home`);
     expect(args).toContain("501:20");
     expect(args).toContain("workspace-write");
     expect(args).toContain("/workspace");
