@@ -1,4 +1,11 @@
-import type { Agent, AgentRun, Message, SystemInfo } from "./types";
+import { Ability, AbilityBody } from "./types/abilities";
+import { AuditEvent } from "./types/audits";
+import type {
+  Agent,
+  AgentRun,
+  Message,
+  SystemInfo,
+} from "./types";
 
 export class ApiError extends Error {
   constructor(
@@ -25,7 +32,9 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
     ...options,
     headers,
   });
-  const data = (await response.json().catch(() => ({}))) as T & { error?: string };
+  const data = (await response.json().catch(() => ({}))) as T & {
+    error?: string;
+  };
   if (!response.ok) {
     throw new ApiError(data.error ?? "Request failed", response.status);
   }
@@ -78,4 +87,20 @@ export const api = {
       },
     ),
   run: (id: string) => request<{ run: AgentRun }>("/api/runs/" + id),
+  approveRun: (id: string, body: { isApprove: boolean }) =>
+    request<{ run: AgentRun }>("/api/runs/" + id + "/approve", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  pendingApprovals: () =>
+    request<{ runs: AgentRun[] }>("/api/runs/pendingApprovals"),
+  auditEvents: (id: string) =>
+    request<{ events: AuditEvent[] }>("/api/agents/" + id + "/auditEvents"),
+  abilities: () =>
+    request<{ abilities: Record<Ability, boolean> }>("/api/abilities"),
+  updateAbilities: (id: string, body: AbilityBody) =>
+    request<{ agent: Agent }>("/api/agents/" + id + "/abilities", {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
 };

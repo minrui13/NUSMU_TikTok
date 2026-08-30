@@ -1,14 +1,16 @@
+import { HttpError } from "./errors.js";
+import {
+  type Ability,
+  defaultAgentAbilities,
+} from "./middleware/permissions.js";
 import cors from "@fastify/cors";
 import fastifyStatic from "@fastify/static";
 import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
+import { z } from "zod";
 import { timingSafeEqual } from "node:crypto";
 import { fileURLToPath } from "node:url";
-import { z } from "zod";
-import type { AppConfig } from "./config.js";
-import { HttpError } from "./errors.js";
 import type { AgentService } from "./agent-service.js";
-import type { Ability } from "./middleware/permissions.js";
-
+import type { AppConfig } from "./config.js";
 const agentIdParams = z.object({ id: z.string().uuid() });
 const runIdParams = z.object({ id: z.string().uuid() });
 const createAgentBody = z.object({
@@ -31,7 +33,10 @@ const abilitiesBody = z.object({
   canRunCommand: z.boolean().optional(),
   canAccessSecrets: z.boolean().optional(),
   canUseNetwork: z.boolean().optional(),
+  canJoinSession: z.boolean().optional(),
 });
+
+const approvalBody = z.object({ isApprove: z.boolean() });
 
 function getUserId(request: FastifyRequest): string {
   const header = request.headers["x-user-id"];
@@ -146,6 +151,13 @@ export async function createApp(
     return { run: service.getRun(id) };
   });
 
+  // Get all abilities
+  app.get("/api/abilities", async () => {
+    return {
+      abilities: defaultAgentAbilities,
+    };
+  });
+
   // Updates the permission of a specified Agent.
   app.patch("/api/agents/:id/abilities", async (request) => {
     const { id } = agentIdParams.parse(request.params);
@@ -162,9 +174,20 @@ export async function createApp(
   // Shows the audit history for a specified Agent
   // Each event records who performed the action, which Agent was affected,
   // whether the policy allowed or denied it, and the reason for the decision.
-  app.get("/api/agents/:id/audit-events", async (request) => {
+  app.get("/api/agents/:id/auditEvents", async (request) => {
     const { id } = agentIdParams.parse(request.params);
     return { events: service.getAuditEvents(id) };
+  });
+
+  app.post("/api/runs/:id/approve", async (request) => {
+    const { id } = runIdParams.parse(request.params);
+    const body = approvalBody.parse(request.body);
+    const userId = getUserId(request);
+    return { run: await service.approveRun(id, userId, body.isApprove) };
+  });
+
+  app.get("/api/runs/pendingApprovals", async () => {
+    return { runs: service.getPendingApprovals() };
   });
 
   if (config.nodeEnv === "production") {

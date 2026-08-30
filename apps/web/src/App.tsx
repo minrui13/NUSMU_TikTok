@@ -1,6 +1,9 @@
+import { ApiError, api, setAuthToken } from "./api";
+import { AbilitiesTable } from "./components/AbilitiesTable";
+import { defaultAbilities } from "./types/abilities";
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { api, ApiError, setAuthToken } from "./api";
-import type { Agent, AgentRun, Message, SystemInfo } from "./types";
+import type { Agent, AgentRun, Message, SystemInfo, View } from "./types";
 
 const starterPrompts = [
   "Create a small TypeScript CLI that prints a weather summary from sample JSON.",
@@ -49,6 +52,10 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [authRequired, setAuthRequired] = useState<boolean | null>(null);
   const [authInput, setAuthInput] = useState("");
+  const [view, setView] = useState<View>("playground");
+  const [savingAbilities, setSavingAbilities] = useState<
+    Record<string, boolean>
+  >({});
   const messageEnd = useRef<HTMLDivElement>(null);
   const selectedIdRef = useRef<string | null>(null);
   const mountedRef = useRef(true);
@@ -64,9 +71,7 @@ export default function App() {
     const { agents: next } = await api.listAgents();
     setAgents(next);
     setSelectedId((current) =>
-      current && next.some((agent) => agent.id === current)
-        ? current
-        : (next[0]?.id ?? null),
+      current && next.some((agent) => agent.id === current) ? current : null,
     );
   }, []);
 
@@ -76,6 +81,22 @@ export default function App() {
       setMessages(result.messages);
     }
   }, []);
+
+  const updateAbilities = useCallback(
+    async (agentId: string, ability: string, next: boolean) => {
+      const cellKey = agentId + ":" + ability;
+      setSavingAbilities((s) => ({ ...s, [cellKey]: true }));
+      try {
+        await api.updateAbilities(agentId, { [ability]: next });
+        await refreshAgents(); // pulls fresh agent.abilities so the checkbox reflects the saved state
+      } catch (reason) {
+        setError(reason instanceof Error ? reason.message : String(reason));
+      } finally {
+        setSavingAbilities((s) => ({ ...s, [cellKey]: false }));
+      }
+    },
+    [refreshAgents],
+  );
 
   const bootstrap = useCallback(async () => {
     await Promise.all([refreshAgents(), api.system().then(setSystem)]);
@@ -90,7 +111,9 @@ export default function App() {
         setAuthRequired(required);
         if (!required) await bootstrap();
       })
-      .catch((reason) => setError(reason instanceof Error ? reason.message : String(reason)));
+      .catch((reason) =>
+        setError(reason instanceof Error ? reason.message : String(reason)),
+      );
     return () => {
       mountedRef.current = false;
     };
@@ -186,7 +209,11 @@ export default function App() {
 
   const deleteAgent = async () => {
     if (!selected) return;
-    if (!window.confirm("Delete " + selected.name + "? Its workspace will be archived.")) {
+    if (
+      !window.confirm(
+        "Delete " + selected.name + "? Its workspace will be archived.",
+      )
+    ) {
       return;
     }
     setBusy(true);
@@ -269,10 +296,16 @@ export default function App() {
     return (
       <main className="auth-screen">
         <section className="auth-card" aria-live="polite">
-          <div className="brand-mark">A</div>
-          <span className="eyebrow">Agent Launchpad</span>
-          <h1>Connecting to the control plane</h1>
-          {error ? <div className="error-banner" role="alert">{error}</div> : <Spinner />}
+          <div className="brand-mark">{"A"}</div>
+          <span className="eyebrow">{"Agent Launchpad"}</span>
+          <h1>{"Connecting to the control plane"}</h1>
+          {error ? (
+            <div className="error-banner" role="alert">
+              {error}
+            </div>
+          ) : (
+            <Spinner />
+          )}
         </section>
       </main>
     );
@@ -282,13 +315,19 @@ export default function App() {
     return (
       <main className="auth-screen">
         <form className="auth-card" onSubmit={unlock}>
-          <div className="brand-mark">A</div>
-          <span className="eyebrow">Agent Launchpad</span>
-          <h1>Enter the access token</h1>
-          <p>This shared demo token is configured by the platform operator.</p>
-          {error && <div className="error-banner" role="alert">{error}</div>}
+          <div className="brand-mark">{"A"}</div>
+          <span className="eyebrow">{"Agent Launchpad"}</span>
+          <h1>{"Enter the access token"}</h1>
+          <p>
+            {"This shared demo token is configured by the platform operator."}
+          </p>
+          {error && (
+            <div className="error-banner" role="alert">
+              {error}
+            </div>
+          )}
           <label>
-            Access token
+            {"Access token\r"}
             <input
               autoFocus
               type="password"
@@ -298,7 +337,10 @@ export default function App() {
               required
             />
           </label>
-          <button className="button button-primary" disabled={busy || !authInput.trim()}>
+          <button
+            className="button button-primary"
+            disabled={busy || !authInput.trim()}
+          >
             {busy ? <Spinner /> : "Open Launchpad"}
           </button>
         </form>
@@ -310,9 +352,9 @@ export default function App() {
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand">
-          <div className="brand-mark">A</div>
+          <div className="brand-mark">{"A"}</div>
           <div>
-            <strong>Agent Launchpad</strong>
+            <strong>{"Agent Launchpad"}</strong>
             <span>
               {system?.runtimeProvider === "container"
                 ? "Local container · Codex CLI"
@@ -328,21 +370,51 @@ export default function App() {
             setShowCreate(true);
           }}
         >
-          <span>＋</span> Create Agent
+          <span>{"＋"}</span> {"Create Agent\r"}
         </button>
 
         <div className="sidebar-label">
-          <span>Your Agents</span>
+          <span>{"Utilities"}</span>
+        </div>
+        <nav className="utilities-list">
+          <span
+            className={`${view === "abilities" ? "view-clicked" : ""}`}
+            onClick={() => {
+              setView("abilities");
+              setSelectedId(null);
+            }}
+          >
+            {"Abilities\r"}
+          </span>
+          <span
+            className={`${view === "audit" ? "view-clicked" : ""}`}
+            onClick={() => {
+              setView("audit");
+              setSelectedId(null);
+            }}
+          >
+            {"Audit Log\r"}
+          </span>
+        </nav>
+        <div className="sidebar-label">
+          <span>{"Your Agents"}</span>
           <span>{agents.length}</span>
         </div>
         <nav className="agent-list">
           {agents.map((agent) => (
             <button
-              className={"agent-card " + (agent.id === selectedId ? "selected" : "")}
+              className={
+                "agent-card " + (agent.id === selectedId ? "selected" : "")
+              }
               key={agent.id}
-              onClick={() => setSelectedId(agent.id)}
+              onClick={() => {
+                setView("playground");
+                setSelectedId(agent.id);
+              }}
             >
-              <div className="agent-avatar">{agent.name.slice(0, 1).toUpperCase()}</div>
+              <div className="agent-avatar">
+                {agent.name.slice(0, 1).toUpperCase()}
+              </div>
               <div className="agent-card-copy">
                 <strong>{agent.name}</strong>
                 <span>{agent.description || "Coding Agent"}</span>
@@ -352,14 +424,14 @@ export default function App() {
           ))}
           {agents.length === 0 && (
             <div className="empty-sidebar">
-              <span>◇</span>
-              Create your first coding Agent.
+              <span>{"◇"}</span>
+              {"Create your first coding Agent.\r"}
             </div>
           )}
         </nav>
 
         <div className="runtime-card">
-          <span className="eyebrow">Runtime</span>
+          <span className="eyebrow">{"Runtime"}</span>
           <strong>{system?.runtime ?? "Checking…"}</strong>
           <span>
             {system?.arkModel ?? "Ark model not configured"}
@@ -371,9 +443,9 @@ export default function App() {
       <main className="main">
         {!system?.arkConfigured || !system?.codexAvailable ? (
           <div className="config-banner">
-            <span>!</span>
+            <span>{"!"}</span>
             <div>
-              <strong>Runtime configuration needed</strong>
+              <strong>{"Runtime configuration needed"}</strong>
               <p>
                 {!system?.arkConfigured
                   ? "Set ARK_API_KEY and ARK_MODEL in .env before using the Playground."
@@ -388,7 +460,7 @@ export default function App() {
         {error && (
           <div className="error-banner" role="alert">
             <span>{error}</span>
-            <button onClick={() => setError(null)}>×</button>
+            <button onClick={() => setError(null)}>{"×"}</button>
           </div>
         )}
 
@@ -400,7 +472,10 @@ export default function App() {
                   <h1>{selected.name}</h1>
                   <StatusPill status={selected.status} />
                 </div>
-                <p>{selected.description || "A Codex coding Agent in an isolated workspace."}</p>
+                <p>
+                  {selected.description ||
+                    "A Codex coding Agent in an isolated workspace."}
+                </p>
               </div>
               <div className="header-actions">
                 <button
@@ -408,7 +483,7 @@ export default function App() {
                   onClick={() => setShowSettings((value) => !value)}
                   disabled={busy || selected.status === "busy"}
                 >
-                  Settings
+                  {"Settings\r"}
                 </button>
                 <button
                   className="button button-ghost"
@@ -422,7 +497,7 @@ export default function App() {
                   onClick={deleteAgent}
                   disabled={busy || selected.status === "busy"}
                 >
-                  Delete
+                  {"Delete\r"}
                 </button>
               </div>
             </header>
@@ -431,23 +506,27 @@ export default function App() {
               <form className="settings-panel" onSubmit={saveAgent}>
                 <div className="settings-title">
                   <div>
-                    <span className="eyebrow">Agent configuration</span>
-                    <h2>Instructions and identity</h2>
+                    <span className="eyebrow">{"Agent configuration"}</span>
+                    <h2>{"Instructions and identity"}</h2>
                   </div>
-                  <button type="button" onClick={() => setShowSettings(false)}>×</button>
+                  <button type="button" onClick={() => setShowSettings(false)}>
+                    {"×\r"}
+                  </button>
                 </div>
                 <div className="form-grid">
                   <label>
-                    Name
+                    {"Name\r"}
                     <input
                       value={form.name}
-                      onChange={(event) => setForm({ ...form, name: event.target.value })}
+                      onChange={(event) =>
+                        setForm({ ...form, name: event.target.value })
+                      }
                       required
                       maxLength={80}
                     />
                   </label>
                   <label>
-                    Description
+                    {"Description\r"}
                     <input
                       value={form.description}
                       onChange={(event) =>
@@ -458,7 +537,7 @@ export default function App() {
                   </label>
                 </div>
                 <label>
-                  System instructions
+                  {"System instructions\r"}
                   <textarea
                     value={form.instructions}
                     onChange={(event) =>
@@ -480,8 +559,8 @@ export default function App() {
             <section className="playground">
               <div className="playground-topbar">
                 <div>
-                  <span className="eyebrow">Playground</span>
-                  <h2>Build something with your Agent</h2>
+                  <span className="eyebrow">{"Playground"}</span>
+                  <h2>{"Build something with your Agent"}</h2>
                 </div>
                 <div className="session-info">
                   <span className="pulse" />
@@ -493,17 +572,23 @@ export default function App() {
                 {messages.length === 0 && !activeRun ? (
                   <div className="welcome">
                     <div className="welcome-orbit">
-                      <div>⌁</div>
+                      <div>{"⌁"}</div>
                     </div>
-                    <h3>What should {selected.name} build?</h3>
+                    <h3>
+                      {"What should "}
+                      {selected.name}
+                      {" build?"}
+                    </h3>
                     <p>
-                      The Agent can inspect files, write code, run commands, and continue the
-                      same Codex session across messages.
+                      {
+                        "The Agent can inspect files, write code, run commands, and\r"
+                      }
+                      {"continue the same Codex session across messages.\r"}
                     </p>
                     <div className="prompt-grid">
                       {starterPrompts.map((item) => (
                         <button key={item} onClick={() => setPrompt(item)}>
-                          <span>↗</span>
+                          <span>{"↗"}</span>
                           {item}
                         </button>
                       ))}
@@ -511,30 +596,36 @@ export default function App() {
                   </div>
                 ) : (
                   messages.map((message) => (
-                    <article className={"message message-" + message.role} key={message.id}>
+                    <article
+                      className={"message message-" + message.role}
+                      key={message.id}
+                    >
                       <div className="message-meta">
-                        <strong>{message.role === "user" ? "You" : selected.name}</strong>
+                        <strong>
+                          {message.role === "user" ? "You" : selected.name}
+                        </strong>
                         <span>{formatTime(message.createdAt)}</span>
                       </div>
                       <div className="message-body">{message.content}</div>
                     </article>
                   ))
                 )}
-                {activeRun && ["queued", "running"].includes(activeRun.status) && (
-                  <article className="message message-assistant thinking">
-                    <div className="message-meta">
-                      <strong>{selected.name}</strong>
-                      <span>working in the Agent workspace</span>
-                    </div>
-                    <div className="thinking-row">
-                      <Spinner />
-                      Codex is reading, editing, or running commands…
-                    </div>
-                  </article>
-                )}
+                {activeRun &&
+                  ["queued", "running"].includes(activeRun.status) && (
+                    <article className="message message-assistant thinking">
+                      <div className="message-meta">
+                        <strong>{selected.name}</strong>
+                        <span>{"working in the Agent workspace"}</span>
+                      </div>
+                      <div className="thinking-row">
+                        <Spinner />
+                        {"Codex is reading, editing, or running commands…\r"}
+                      </div>
+                    </article>
+                  )}
                 {activeRun?.status === "failed" && (
                   <article className="run-error">
-                    <strong>Run failed</strong>
+                    <strong>{"Run failed"}</strong>
                     <span>{activeRun.error}</span>
                   </article>
                 )}
@@ -559,13 +650,15 @@ export default function App() {
                   disabled={
                     selected.status === "stopped" ||
                     selected.status === "busy" ||
-                    activeRun != null && ["queued", "running"].includes(activeRun.status)
+                    (activeRun != null &&
+                      ["queued", "running"].includes(activeRun.status))
                   }
                   rows={3}
                 />
                 <div className="composer-footer">
                   <span>
-                    Enter to send · Shift + Enter for newline · {system?.codexSandboxMode ?? "checking sandbox"}
+                    {"Enter to send · Shift + Enter for newline ·"}{" "}
+                    {system?.codexSandboxMode ?? "checking sandbox"}
                   </span>
                   <button
                     className="send-button"
@@ -573,22 +666,37 @@ export default function App() {
                       !prompt.trim() ||
                       selected.status === "stopped" ||
                       selected.status === "busy" ||
-                      (activeRun != null && ["queued", "running"].includes(activeRun.status))
+                      (activeRun != null &&
+                        ["queued", "running"].includes(activeRun.status))
                     }
                     aria-label="Send message"
                   >
-                    ↑
+                    {"↑\r"}
                   </button>
                 </div>
               </form>
             </section>
           </>
+        ) : view === "abilities" ? (
+          <AbilitiesTable
+            onSelectAgent={(agentId) => {
+              setSelectedId(agentId);
+              setView("playground");
+            }}
+            agents={agents}
+            abilities={defaultAbilities}
+            onUpdate={updateAbilities}
+            saving={savingAbilities}
+          />
         ) : (
           <div className="no-agent">
-            <div className="no-agent-art">A</div>
-            <span className="eyebrow">Agent Launchpad</span>
-            <h1>Your runtime is ready for an Agent.</h1>
-            <p>Create a workspace, give Codex a job, and continue the conversation here.</p>
+            <div className="no-agent-art">{"A"}</div>
+            <span className="eyebrow">{"Agent Launchpad"}</span>
+            <h1>{"Your runtime is ready for an Agent."}</h1>
+            <p>
+              {"Create a workspace, give Codex a job, and continue the\r"}
+              {"conversation here.\r"}
+            </p>
             <button
               className="button button-primary"
               onClick={() => {
@@ -596,14 +704,17 @@ export default function App() {
                 setShowCreate(true);
               }}
             >
-              Create your first Agent
+              {"Create your first Agent\r"}
             </button>
           </div>
         )}
       </main>
 
       {showCreate && (
-        <div className="modal-backdrop" onMouseDown={() => setShowCreate(false)}>
+        <div
+          className="modal-backdrop"
+          onMouseDown={() => setShowCreate(false)}
+        >
           <form
             className="modal"
             onSubmit={createAgent}
@@ -611,25 +722,34 @@ export default function App() {
           >
             <div className="modal-heading">
               <div>
-                <span className="eyebrow">New workspace</span>
-                <h2>Create an Agent</h2>
-                <p>Each Agent gets a persistent folder and a resumable Codex session.</p>
+                <span className="eyebrow">{"New workspace"}</span>
+                <h2>{"Create an Agent"}</h2>
+                <p>
+                  {
+                    "Each Agent gets a persistent folder and a resumable Codex\r"
+                  }
+                  {"session.\r"}
+                </p>
               </div>
-              <button type="button" onClick={() => setShowCreate(false)}>×</button>
+              <button type="button" onClick={() => setShowCreate(false)}>
+                {"×\r"}
+              </button>
             </div>
             <label>
-              Name
+              {"Name\r"}
               <input
                 autoFocus
                 placeholder="Frontend Builder"
                 value={form.name}
-                onChange={(event) => setForm({ ...form, name: event.target.value })}
+                onChange={(event) =>
+                  setForm({ ...form, name: event.target.value })
+                }
                 required
                 maxLength={80}
               />
             </label>
             <label>
-              Description
+              {"Description\r"}
               <input
                 placeholder="Builds polished React prototypes"
                 value={form.description}
@@ -640,7 +760,7 @@ export default function App() {
               />
             </label>
             <label>
-              Instructions
+              {"Instructions\r"}
               <textarea
                 value={form.instructions}
                 onChange={(event) =>
@@ -656,7 +776,7 @@ export default function App() {
                 className="button button-ghost"
                 onClick={() => setShowCreate(false)}
               >
-                Cancel
+                {"Cancel\r"}
               </button>
               <button className="button button-primary" disabled={busy}>
                 {busy ? <Spinner /> : "Create Agent"}

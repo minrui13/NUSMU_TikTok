@@ -1,4 +1,4 @@
-import type { Ability } from "./middleware/permissions.ts";
+import type { Ability, Risk } from "./middleware/permissions.ts";
 
 export type AgentStatus = "ready" | "busy" | "stopped" | "error";
 export type RunStatus =
@@ -46,6 +46,7 @@ export interface RunUsage {
 export interface AgentRun {
   id: string;
   agentId: string;
+  sessionId: string | null;
   status: RunStatus;
   prompt: string;
   output: string | null;
@@ -103,19 +104,31 @@ export interface AuditEvent {
   runId: string | null;
   actor: AuditActor;
   action: string;
-  risk: "low" | "medium" | "high" | "critical" | null;
+  risk: Risk | null;
   decision: AuditDecision;
   reason: string | null;
   createdAt: string;
+}
+
+export interface CoordinationEvent {
+  agentId: string;
+  sessionId: string | null;
+  action: string;
+  decision: AuditDecision;
+  reason: string | null;
+  risk: Risk | null;
 }
 
 export interface AuditEntry {
   userId: string;
   agentId: string;
   runId: string | null;
+  sessionId: string | null;
   actor: AuditActor;
   action: string;
-  risk: "low" | "medium" | "high" | "critical" | null;
+  risk: Risk | null;
   decision: AuditDecision;
   reason: string | null;
 }
+
+

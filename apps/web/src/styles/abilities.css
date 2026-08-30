@@ -1,0 +1,56 @@
+.abilities-table {
+  min-width: 850px;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-family: ui-rounded, "SF Pro Rounded", system-ui, sans-serif;
+  letter-spacing: -0.035em;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.52), rgba(255, 255, 255, 0.52)),
+    radial-gradient(circle at 20% 0, #f1effb, transparent 38%);
+}
+.abilities-table-head {
+  padding: 17px 22px;
+  border-bottom: 1px solid #e5e3dc;
+  background: #fbfaf7f0;
+}
+
+.abilities-table-head-row {
+  display: flex;
+  align-items: center;
+}
+
+.abilities-table-head .abilities-table-cell {
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.abilities-table-head .abilities-table-cell div {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+
+.abilities-table-cell {
+  font-family:
+    ui-rounded,
+    SF Pro Rounded,
+    system-ui,
+    sans-serif;
+  letter-spacing: -0.035em;
+  padding: 17px 22px;
+}
+
+.abilities-sticky-column {
+  position: sticky;
+  left: 0;
+  min-width: 180px;
+  width: 180px;
+  background: #fbfaf7;
+  z-index: 1;
+  box-shadow: 4px 0 8px rgba(0, 0, 0, 0.06);
+}
+
+.MuiTableHead-root .abilities-sticky-column {
+  z-index: 3;
+  background: #fbfaf7;
+}

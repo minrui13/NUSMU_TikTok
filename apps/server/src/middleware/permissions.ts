@@ -8,7 +8,9 @@ export type Ability =
   // Allows Agent to read sensitive values such as API keys, tokens, passwords, or .env files
   | "canAccessSecrets"
   // Allows Agent to access the internet or external services.
-  | "canUseNetwork";
+  | "canUseNetwork"
+  // Allows Agent to join session
+  | "canJoinSession";
 
 // Default abilities settings for each agent
 export const defaultAgentAbilities: Record<Ability, boolean> = {
@@ -17,6 +19,7 @@ export const defaultAgentAbilities: Record<Ability, boolean> = {
   canRunCommand: false,
   canAccessSecrets: false,
   canUseNetwork: false,
+  canJoinSession: false,
 };
 
 // These are just heuristic keyword classifier because
@@ -51,6 +54,7 @@ export const abilityRisk: Record<Ability, Risk> = {
   canRunCommand: "high",
   canAccessSecrets: "critical",
   canUseNetwork: "high",
+  canJoinSession: "medium",
 };
 
 // Scans the prompt and check against the pattertn to see which ability is required

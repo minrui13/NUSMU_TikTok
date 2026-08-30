@@ -1,28 +1,30 @@
-import { randomUUID } from "node:crypto";
-import type { AppConfig } from "./config.js";
 import { isArkConfigured } from "./config.js";
 import { HttpError, RunCancelledError } from "./errors.js";
-import { JsonStore } from "./store.js";
 import {
+  type Ability,
   classifyAction,
   defaultAgentAbilities,
-  type Ability,
 } from "./middleware/permissions.js";
 import {
+  checkAbility,
   evaluateAction,
   overallDecision,
 } from "./middleware/policy-checker.js";
+import { JsonStore } from "./store.js";
 
+import { WorkspaceManager } from "./workspace.js";
+import { randomUUID } from "node:crypto";
+import type { AppConfig } from "./config.js";
 import type {
   Agent,
   AgentRun,
   AgentRunner,
+  AuditEntry,
+  CoordinationEvent,
   CreateAgentInput,
   Message,
   UpdateAgentInput,
-  AuditEntry,
 } from "./types.js";
-import { WorkspaceManager } from "./workspace.js";
 
 const now = () => new Date().toISOString();
 
@@ -118,10 +120,12 @@ export class AgentService {
         );
       }
       if (input.name !== undefined) agent.name = input.name.trim();
-      if (input.description !== undefined)
+      if (input.description !== undefined) {
         agent.description = input.description.trim();
-      if (input.instructions !== undefined)
+      }
+      if (input.instructions !== undefined) {
         agent.instructions = input.instructions.trim();
+      }
       agent.lastError = null;
       agent.updatedAt = now();
       return structuredClone(agent);
@@ -182,6 +186,7 @@ export class AgentService {
     agentId: string,
     prompt: string,
     userId: string,
+    sessionId: string | null = null,
   ): Promise<{ run: AgentRun; message: Message }> {
     if (!isArkConfigured(this.config)) {
       throw new HttpError(
@@ -194,6 +199,7 @@ export class AgentService {
     const run: AgentRun = {
       id: runId,
       agentId,
+      sessionId,
       status: "queued",
       prompt,
       output: null,
@@ -211,7 +217,7 @@ export class AgentService {
       content: prompt,
       createdAt: timestamp,
     };
-    
+
     const agentAtStart = await this.store.mutate((database) => {
       const storedAgent = database.agents.find((item) => item.id === agentId);
       if (!storedAgent) {
@@ -244,6 +250,7 @@ export class AgentService {
         userId,
         agentId,
         runId: run.id,
+        sessionId: run.id,
         actor: "human",
         action: result.ability,
         risk: result.risk,
@@ -258,7 +265,7 @@ export class AgentService {
     );
 
     if (decision === "denied" && denied) {
-      await this.failRun(agentId, run.id, "failed", denied.reason);
+      await this.denyRun(agentId, run.id, "failed", denied.reason);
       throw new HttpError(403, denied.reason);
     }
 
@@ -310,12 +317,12 @@ export class AgentService {
       const agent = database.agents.find((item) => item.id === id);
       if (!agent) throw new HttpError(404, "Agent not found");
       agent.abilities = { ...agent.abilities, ...patch };
-      agent.updatedAt = now();
       return structuredClone(agent);
     });
     await this.recordAudit({
       userId,
       agentId: id,
+      sessionId: null,
       runId: null,
       actor: "human",
       action: "updateAbilities:" + JSON.stringify(patch),
@@ -467,9 +474,23 @@ export class AgentService {
     });
   }
 
+  async recordCoordinationEvent(entry: CoordinationEvent): Promise<void> {
+    await this.recordAudit({
+      userId: "system:coordinator",
+      agentId: entry.agentId,
+      runId: null,
+      sessionId: entry.sessionId,
+      actor: "system",
+      action: entry.action,
+      risk: entry.risk,
+      decision: entry.decision,
+      reason: entry.reason,
+    });
+  }
+
   /* Human approval for high-risk agent actions */
   // When disapprove, it finds the run and then don't let the agent
-  private async failRun(
+  private async denyRun(
     agentId: string,
     runId: string,
     status: "denied" | "failed",
@@ -506,6 +527,7 @@ export class AgentService {
       userId: approverUserId,
       agentId: agent.id,
       runId: run.id,
+      sessionId: run.sessionId,
       actor: "human",
       action: grant ? "approve_run" : "deny_run",
       risk: "high",
@@ -516,7 +538,7 @@ export class AgentService {
     });
 
     if (!grant) {
-      await this.failRun(
+      await this.denyRun(
         agent.id,
         run.id,
         "denied",
@@ -525,11 +547,20 @@ export class AgentService {
       return this.getRun(runId);
     }
 
-    await this.store.mutate((database) => {
+    const freshAgent = await this.store.mutate((database) => {
       const storedAgent = database.agents.find((a) => a.id === agent.id);
-      if (storedAgent) storedAgent.status = "busy";
+      const storedRun = database.runs.find((r) => r.id === run.id);
+      if (!storedAgent) throw new HttpError(404, "Agent not found");
+      if (storedAgent.status === "busy") {
+        throw new HttpError(409, "Agent is already running something else");
+      }
+      storedAgent.status = "busy";
+      storedAgent.updatedAt = now();
+      if (storedRun) storedRun.status = "running";
+      return structuredClone(storedAgent);
     });
-    const execution = this.executeRun(agent, run);
+
+    const execution = this.executeRun(freshAgent, run);
     this.activeExecutions.set(agent.id, execution);
     void execution
       .finally(() => {
@@ -540,5 +571,25 @@ export class AgentService {
       .catch(() => undefined);
 
     return this.getRun(runId);
+  }
+
+  checkCanJoinSession(agentId: string): { allowed: boolean; reason: string } {
+    const agent = this.getAgent(agentId);
+    const decision = checkAbility(
+      "canJoinSession",
+      grantedList(agent.abilities),
+    );
+    return {
+      allowed: decision.decision === "allowed",
+      reason: decision.reason,
+    };
+  }
+
+  // Listing approvals that is needed by the human
+  getPendingApprovals(): AgentRun[] {
+    return this.store
+      .snapshot()
+      .runs.filter((run) => run.status === "pending_approval")
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   }
 }

@@ -1,5 +1,14 @@
+import { Ability } from "./types/abilities";
+
 export type AgentStatus = "ready" | "busy" | "stopped" | "error";
-export type RunStatus = "queued" | "running" | "completed" | "failed" | "cancelled";
+export type RunStatus =
+  | "queued"
+  | "running"
+  | "completed"
+  | "failed"
+  | "cancelled";
+
+
 
 export interface Agent {
   id: string;
@@ -10,6 +19,7 @@ export interface Agent {
   workspacePath: string;
   codexThreadId: string | null;
   lastError: string | null;
+  abilities: Record<Ability, boolean>;
   createdAt: string;
   updatedAt: string;
 }
@@ -48,3 +58,6 @@ export interface SystemInfo {
   containerEngine: string | null;
   runtime: string;
 }
+
+export type View = "playground" | "abilities" | "audit" | "approvals";
+
