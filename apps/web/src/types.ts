@@ -68,3 +68,43 @@ export interface SystemInfo {
   containerEngine: string | null;
   runtime: string;
 }
+
+export type ImmuneThreatCategory =
+  | "prompt_injection"
+  | "credential_access"
+  | "data_exfiltration"
+  | "destructive_action"
+  | "workspace_escape"
+  | "suspicious_network";
+
+export interface ImmuneThreatEvent {
+  id: string;
+  agentId: string;
+  runId: string;
+  promptExcerpt: string;
+  score: number;
+  decision: "allow" | "review" | "deny";
+  categories: ImmuneThreatCategory[];
+  reasons: string[];
+  matchedMemoryIds: string[];
+  learnedMatch: boolean;
+  reviewStatus: "pending" | "confirmed" | "dismissed";
+  createdAt: string;
+  reviewedAt: string | null;
+}
+
+export interface ImmuneMemory {
+  id: string;
+  category: ImmuneThreatCategory;
+  label: string;
+  fingerprint: string;
+  confirmations: number;
+  dismissals: number;
+  detections: number;
+  confidence: number;
+  autoBlock: boolean;
+  status: "active" | "disabled";
+  learnedFromEventId: string;
+  createdAt: string;
+  updatedAt: string;
+}

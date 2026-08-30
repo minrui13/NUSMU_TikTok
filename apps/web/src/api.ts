@@ -1,4 +1,4 @@
-import type { Agent, AgentRun, GroupTaskState, Message, SystemInfo } from "./types";
+import type { Agent, AgentRun, GroupTaskState, Message, SystemInfo, ImmuneThreatEvent, ImmuneMemory } from "./types";
 
 export class ApiError extends Error {
   constructor(
@@ -78,6 +78,15 @@ export const api = {
       },
     ),
   run: (id: string) => request<{ run: AgentRun }>("/api/runs/" + id),
+  immuneEvent: (runId: string) =>
+    request<{ event: ImmuneThreatEvent | null }>("/api/runs/" + runId + "/immune"),
+  immuneMemories: (agentId: string) =>
+    request<{ memories: ImmuneMemory[] }>("/api/agents/" + agentId + "/immune-memories"),
+  reviewImmuneEvent: (eventId: string, action: "confirm" | "dismiss") =>
+    request<{ event: ImmuneThreatEvent; memory: ImmuneMemory | null }>(
+      "/api/immune/events/" + eventId + "/review",
+      { method: "POST", body: JSON.stringify({ action }) },
+    ),
   createGroupTask: (body: { description: string }) =>
     request<{ task: GroupTaskState }>("/api/group-tasks", {
       method: "POST",

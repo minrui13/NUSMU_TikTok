@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, ApiError, setAuthToken } from "./api";
-import type { Agent, AgentRun, Message, SystemInfo } from "./types";
+import type { Agent, AgentRun, Message, SystemInfo, ImmuneThreatEvent, ImmuneMemory } from "./types";
 import { GroupTaskPanel } from "./GroupTaskPanel";
 
 const starterPrompts = [
@@ -47,6 +47,8 @@ export default function App() {
   const [form, setForm] = useState(emptyForm);
   const [prompt, setPrompt] = useState("");
   const [activeRun, setActiveRun] = useState<AgentRun | null>(null);
+  const [immuneEvent, setImmuneEvent] = useState<ImmuneThreatEvent | null>(null);
+  const [immuneMemories, setImmuneMemories] = useState<ImmuneMemory[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [authRequired, setAuthRequired] = useState<boolean | null>(null);
@@ -100,16 +102,24 @@ export default function App() {
 
   useEffect(() => {
     setActiveRun(null);
+    setImmuneEvent(null);
+    setImmuneMemories([]);
     setShowSettings(false);
     if (!selectedId) {
       setMessages([]);
       return;
     }
-    void Promise.all([refreshMessages(selectedId), api.runs(selectedId)])
-      .then(([, result]) => {
+    void Promise.all([refreshMessages(selectedId), api.runs(selectedId), api.immuneMemories(selectedId)])
+      .then(([, result, memoryResult]) => {
         if (selectedIdRef.current !== selectedId) return;
         const latest = result.runs[0] ?? null;
         setActiveRun(latest);
+        setImmuneMemories(memoryResult.memories);
+        if (latest) {
+          void api.immuneEvent(latest.id).then((value) => {
+            if (selectedIdRef.current === selectedId) setImmuneEvent(value.event);
+          });
+        }
         if (latest && ["queued", "running"].includes(latest.status)) {
           void pollRun(latest.id, selectedId).catch((reason) =>
             setError(reason instanceof Error ? reason.message : String(reason)),
@@ -211,7 +221,13 @@ export default function App() {
         await new Promise((resolve) => window.setTimeout(resolve, 900));
         if (!mountedRef.current) return;
         const result = await api.run(runId);
-        if (selectedIdRef.current === agentId) setActiveRun(result.run);
+        if (selectedIdRef.current === agentId) {
+          setActiveRun(result.run);
+          if (!["queued", "running"].includes(result.run.status)) {
+            const immune = await api.immuneEvent(runId);
+            setImmuneEvent(immune.event);
+          }
+        }
         if (!["queued", "running"].includes(result.run.status)) {
           await Promise.all([refreshMessages(agentId), refreshAgents()]);
           return;
@@ -240,10 +256,31 @@ export default function App() {
         ),
       );
       await pollRun(result.run.id, selected.id);
+      const memoryResult = await api.immuneMemories(selected.id);
+      if (selectedIdRef.current === selected.id) setImmuneMemories(memoryResult.memories);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason));
       setActiveRun(null);
       await refreshAgents();
+    }
+  };
+
+
+  const reviewImmuneEvent = async (action: "confirm" | "dismiss") => {
+    if (!immuneEvent) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await api.reviewImmuneEvent(immuneEvent.id, action);
+      setImmuneEvent(result.event);
+      if (selected) {
+        const memories = await api.immuneMemories(selected.id);
+        setImmuneMemories(memories.memories);
+      }
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -545,6 +582,42 @@ export default function App() {
                   <article className="run-error">
                     <strong>Run failed</strong>
                     <span>{activeRun.error}</span>
+                  </article>
+                )}
+                {immuneEvent && (
+                  <article className="immune-card">
+                    <div className="immune-card-head">
+                      <div>
+                        <span className="eyebrow">Agent Immune</span>
+                        <strong>{immuneEvent.learnedMatch ? "Immune Memory matched" : "Threat intercepted"}</strong>
+                      </div>
+                      <span className="immune-score">{immuneEvent.score}/100</span>
+                    </div>
+                    <div className="immune-tags">
+                      {immuneEvent.categories.map((category) => (
+                        <span key={category}>{category.replaceAll("_", " ")}</span>
+                      ))}
+                    </div>
+                    <ul>
+                      {immuneEvent.reasons.map((reason) => <li key={reason}>{reason}</li>)}
+                    </ul>
+                    {immuneEvent.reviewStatus === "pending" ? (
+                      <div className="immune-actions">
+                        <button className="button button-primary" onClick={() => void reviewImmuneEvent("confirm")} disabled={busy}>Confirm threat & learn</button>
+                        <button className="button button-ghost" onClick={() => void reviewImmuneEvent("dismiss")} disabled={busy}>False positive</button>
+                      </div>
+                    ) : (
+                      <div className="immune-reviewed">Review: {immuneEvent.reviewStatus}</div>
+                    )}
+                  </article>
+                )}
+                {immuneMemories.length > 0 && (
+                  <article className="immune-memory-strip">
+                    <span>🛡</span>
+                    <div>
+                      <strong>Immune Memory: {immuneMemories.length} learned protection{immuneMemories.length === 1 ? "" : "s"}</strong>
+                      <small>{immuneMemories[0]?.label} · {Math.round((immuneMemories[0]?.confidence ?? 0) * 100)}% confidence · {immuneMemories[0]?.detections ?? 0} detections</small>
+                    </div>
                   </article>
                 )}
                 <div ref={messageEnd} />

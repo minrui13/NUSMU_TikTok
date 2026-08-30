@@ -7,6 +7,8 @@ const emptyDatabase = (): Database => ({
   agents: [],
   messages: [],
   runs: [],
+  immuneThreatEvents: [],
+  immuneMemories: [],
 });
 
 export class JsonStore {
@@ -23,7 +25,11 @@ export class JsonStore {
       if (parsed.version !== 1 || !Array.isArray(parsed.agents)) {
         throw new Error("Unsupported database format");
       }
-      this.data = parsed;
+      this.data = {
+        ...parsed,
+        immuneThreatEvents: Array.isArray(parsed.immuneThreatEvents) ? parsed.immuneThreatEvents : [],
+        immuneMemories: Array.isArray(parsed.immuneMemories) ? parsed.immuneMemories : [],
+      };
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
         throw error;

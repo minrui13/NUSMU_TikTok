@@ -10,15 +10,19 @@ import type {
   CreateAgentInput,
   Message,
   UpdateAgentInput,
+  ImmuneMemory,
+  ImmuneThreatEvent,
 } from "./types.js";
 import { WorkspaceManager } from "./workspace.js";
 import { getKnownSecrets, redactSecrets } from "./utils/redaction.js";
+import { AgentImmuneEngine } from "./agent-immune.js";
 
 const now = () => new Date().toISOString();
 
 export class AgentService {
   private readonly activeExecutions = new Map<string, Promise<void>>();
   private readonly cancellationRequests = new Set<string>();
+  private readonly immune = new AgentImmuneEngine();
 
   constructor(
     private readonly config: AppConfig,
@@ -113,6 +117,7 @@ export class AgentService {
       database.agents = database.agents.filter((item) => item.id !== id);
       database.messages = database.messages.filter((item) => item.agentId !== id);
       database.runs = database.runs.filter((item) => item.agentId !== id);
+      database.immuneThreatEvents = database.immuneThreatEvents.filter((item) => item.agentId !== id);
     });
     return { archivedWorkspace };
   }
@@ -149,6 +154,40 @@ export class AgentService {
       .snapshot()
       .runs.filter((run) => run.agentId === agentId)
       .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+  }
+
+  getImmuneEventForRun(runId: string): ImmuneThreatEvent | null {
+    this.getRun(runId);
+    return this.store.snapshot().immuneThreatEvents.find((event) => event.runId === runId) ?? null;
+  }
+
+  getImmuneMemories(agentId: string): ImmuneMemory[] {
+    this.getAgent(agentId);
+    return this.store
+      .snapshot()
+      .immuneMemories
+      .filter((memory) => memory.status === "active")
+      .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+  }
+
+  async reviewImmuneEvent(
+    eventId: string,
+    action: "confirm" | "dismiss",
+  ): Promise<{ event: ImmuneThreatEvent; memory: ImmuneMemory | null }> {
+    return this.store.mutate((database) => {
+      const event = database.immuneThreatEvents.find((item) => item.id === eventId);
+      if (!event) throw new HttpError(404, "Immune threat event not found");
+      if (event.reviewStatus !== "pending") {
+        throw new HttpError(409, "This Immune event has already been reviewed");
+      }
+      event.reviewStatus = action === "confirm" ? "confirmed" : "dismissed";
+      event.reviewedAt = now();
+      if (action === "dismiss") {
+        return { event: structuredClone(event), memory: null };
+      }
+      const memory = this.immune.learn(event, database.immuneMemories);
+      return { event: structuredClone(event), memory };
+    });
   }
 
   async sendMessage(
@@ -245,6 +284,42 @@ export class AgentService {
       if (this.cancellationRequests.has(agentAtStart.id)) {
         throw new RunCancelledError();
       }
+
+      const memories = this.store.snapshot().immuneMemories;
+      const assessment = this.immune.assess(run.prompt, memories);
+      if (assessment.decision !== "allow") {
+        const event = this.immune.createThreatEvent({
+          agentId: agentAtStart.id,
+          runId: run.id,
+          prompt: run.prompt,
+          assessment,
+        });
+        const completedAt = now();
+        await this.store.mutate((database) => {
+          database.immuneThreatEvents.push(event);
+          for (const memoryId of assessment.matchedMemoryIds) {
+            const memory = database.immuneMemories.find((item) => item.id === memoryId);
+            if (memory) {
+              memory.detections += 1;
+              memory.updatedAt = completedAt;
+            }
+          }
+          const storedRun = database.runs.find((item) => item.id === run.id);
+          const agent = database.agents.find((item) => item.id === agentAtStart.id);
+          if (storedRun) {
+            storedRun.status = "failed";
+            storedRun.error = `Agent Immune ${assessment.decision === "deny" ? "blocked" : "held"} this Run (risk ${assessment.score}/100).`;
+            storedRun.completedAt = completedAt;
+          }
+          if (agent) {
+            agent.status = "ready";
+            agent.lastError = null;
+            agent.updatedAt = completedAt;
+          }
+        });
+        return;
+      }
+
       const result = await this.runner.run({
         agentId: agentAtStart.id,
         workspacePath: agentAtStart.workspacePath,
