@@ -1131,3 +1131,36 @@ textarea:focus {
     grid-template-columns: 1fr;
   }
 }
+
+/* Sidebar Group Task Button Alignment */
+.sidebar .group-task-button {
+  width: 100%;
+  margin-top: 0.5rem;
+  margin-bottom: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-weight: 500;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.sidebar .group-task-button .button-icon {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+/* Base button-secondary fallback if not defined elsewhere */
+.button-secondary {
+  background-color: var(--bg-surface-elevated, #2a2d34);
+  color: var(--text-primary, #ffffff);
+  border: 1px solid var(--border-color, #3f444e);
+  border-radius: 6px;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+}
+
+.button-secondary:hover {
+  background-color: var(--bg-surface-hover, #363a43);
+  border-color: var(--border-hover-color, #525866);
+}

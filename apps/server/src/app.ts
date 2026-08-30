@@ -11,6 +11,9 @@ import { timingSafeEqual } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import type { AgentService } from "./agent-service.js";
 import type { AppConfig } from "./config.js";
+import { getKnownSecrets, redactSecrets } from "./utils/redaction.js";
+import type { GroupTaskService } from "./group-task-service.js";  // add import
+
 const agentIdParams = z.object({ id: z.string().uuid() });
 const runIdParams = z.object({ id: z.string().uuid() });
 const createAgentBody = z.object({
@@ -18,12 +21,14 @@ const createAgentBody = z.object({
   description: z.string().max(500).optional(),
   instructions: z.string().max(10_000).optional(),
 });
-const updateAgentBody = createAgentBody
-  .partial()
-  .refine(
-    (value) => Object.keys(value).length > 0,
-    "At least one field is required",
-  );
+const groupTaskIdParams = z.object({ id: z.string().uuid() });
+const createGroupTaskBody = z.object({
+  description: z.string().trim().min(1).max(20_000),
+});
+const updateAgentBody = createAgentBody.partial().refine(
+  (value) => Object.keys(value).length > 0,
+  "At least one field is required",
+);
 const messageBody = z.object({
   content: z.string().trim().min(1).max(50_000),
 });
@@ -48,6 +53,7 @@ function getUserId(request: FastifyRequest): string {
 export async function createApp(
   config: AppConfig,
   service: AgentService,
+  groupTaskService: GroupTaskService,
 ): Promise<FastifyInstance> {
   const app = Fastify({
     logger: {
@@ -150,6 +156,16 @@ export async function createApp(
     const { id } = runIdParams.parse(request.params);
     return { run: service.getRun(id) };
   });
+  app.post("/api/group-tasks", async (request, reply) => {
+  const body = createGroupTaskBody.parse(request.body);
+  const task = groupTaskService.createTask(body.description);
+  return reply.code(201).send({ task });
+});
+
+  app.get("/api/group-tasks/:id", async (request) => {
+    const { id } = groupTaskIdParams.parse(request.params);
+    return { task: groupTaskService.getTask(id) };
+  });
 
   // Get all abilities
   app.get("/api/abilities", async () => {
@@ -219,11 +235,20 @@ export async function createApp(
           : frameworkStatus && frameworkStatus >= 400 && frameworkStatus <= 599
             ? frameworkStatus
             : 500;
+    const safeMessage = redactSecrets(appError.message, getKnownSecrets());
     if (statusCode >= 500) {
-      request.log.error(appError);
+      request.log.error({
+        err: {
+          name: appError.name,
+          message: safeMessage,
+          stack: appError.stack
+            ? redactSecrets(appError.stack, getKnownSecrets())
+            : undefined,
+        },
+      });
     }
     return reply.code(statusCode).send({
-      error: appError.message,
+      error: safeMessage,
       ...(validationError ? { details: error.issues } : {}),
     });
   });

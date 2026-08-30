@@ -1,11 +1,6 @@
 import { Ability, AbilityBody } from "./types/abilities";
 import { AuditEvent } from "./types/audits";
-import type {
-  Agent,
-  AgentRun,
-  Message,
-  SystemInfo,
-} from "./types";
+import type { Agent, AgentRun, GroupTaskState, Message, SystemInfo } from "./types";
 
 export class ApiError extends Error {
   constructor(
@@ -103,4 +98,11 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify(body),
     }),
+  createGroupTask: (body: { description: string }) =>
+    request<{ task: GroupTaskState }>("/api/group-tasks", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  groupTask: (id: string) =>
+    request<{ task: GroupTaskState }>("/api/group-tasks/" + id),
 };
