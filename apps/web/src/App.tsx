@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, ApiError, setAuthToken } from "./api";
 import type { Agent, AgentRun, Message, SystemInfo } from "./types";
+import { GroupTaskPanel } from "./GroupTaskPanel";
 
 const starterPrompts = [
   "Create a small TypeScript CLI that prints a weather summary from sample JSON.",
@@ -42,6 +43,7 @@ export default function App() {
   const [system, setSystem] = useState<SystemInfo | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showGroupTask, setShowGroupTask] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [prompt, setPrompt] = useState("");
   const [activeRun, setActiveRun] = useState<AgentRun | null>(null);
@@ -329,6 +331,13 @@ export default function App() {
           }}
         >
           <span>＋</span> Create Agent
+        </button>
+
+        <button
+          className="button button-secondary group-task-button"
+          onClick={() => setShowGroupTask(true)}
+        >
+          <span className="button-icon">👥</span> Group Task
         </button>
 
         <div className="sidebar-label">
@@ -664,6 +673,9 @@ export default function App() {
             </div>
           </form>
         </div>
+      )}
+      {showGroupTask && (
+        <GroupTaskPanel agents={agents} onClose={() => setShowGroupTask(false)} />
       )}
     </div>
   );

@@ -1,4 +1,4 @@
-import type { Agent, AgentRun, Message, SystemInfo } from "./types";
+import type { Agent, AgentRun, GroupTaskState, Message, SystemInfo } from "./types";
 
 export class ApiError extends Error {
   constructor(
@@ -78,4 +78,11 @@ export const api = {
       },
     ),
   run: (id: string) => request<{ run: AgentRun }>("/api/runs/" + id),
+  createGroupTask: (body: { description: string }) =>
+    request<{ task: GroupTaskState }>("/api/group-tasks", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  groupTask: (id: string) =>
+    request<{ task: GroupTaskState }>("/api/group-tasks/" + id),
 };
