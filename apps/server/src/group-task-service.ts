@@ -25,6 +25,16 @@ export class GroupTaskService {
       );
     }
 
+    for (const participant of participants) {
+      const { allowed, reason } = this.agentService.checkCanJoinSession(participant.id);
+      if (!allowed) {
+        throw new HttpError(
+          403,
+          `${participant.name} cannot join this group task: ${reason}`,
+        );
+      }
+    }
+
     const coordinator = new GroupTaskCoordinator(
       this.agentService,
       description,
