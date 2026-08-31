@@ -11,6 +11,7 @@ import CircularProgress from "@mui/material/CircularProgress";
 import { api } from "../../api";
 import type { AuditEvent } from "../../types/audits";
 import { Agent } from "../../types";
+import { humanizeAction, humanizeUser } from "../../utils/humanizeAction";
 
 import { makeStyles } from "@mui/styles";
 import { riskColour } from "../AbilitiesView";
@@ -151,7 +152,15 @@ export function SingleAgentAuditTable({ agents }: Props) {
               </TableRow>
             )}
             {paged.map((event) => (
-              <TableRow key={event.id} hover>
+              <TableRow
+                key={event.id}
+                hover
+                className={
+                  event.actor === "system"
+                    ? "audit-log-row-system"
+                    : "audit-log-row-user"
+                }
+              >
                 <TableCell className="audit-log-table-cell single">
                   {formatTime(event.createdAt)}
                 </TableCell>
@@ -159,10 +168,10 @@ export function SingleAgentAuditTable({ agents }: Props) {
                   {agentName(event.agentId)}
                 </TableCell>
                 <TableCell className="audit-log-table-cell single">
-                  {event.userId}
+                  {humanizeUser(event.userId)}
                 </TableCell>
                 <TableCell className="audit-log-table-cell single">
-                  {event.action}
+                  {humanizeAction(event.action)}
                 </TableCell>
                 <TableCell className="audit-log-table-cell single">
                   {event.risk ? (
