@@ -130,7 +130,7 @@ export interface ImmuneMemory {
   createdAt: string;
   updatedAt: string;
 }
-export type View = "playground" | "abilities" | "audit" | "approvals";
+export type View = "playground" | "abilities" | "audit" | "approvals" | "dashboard";
 
 export type ToastItem =
   | { kind: "deny"; event: AuditEvent; agentName: string }
