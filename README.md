@@ -594,6 +594,173 @@ As a result, users can inspect Agent history and audit evidence without exposing
 
 ## Group Task 
 By Marcus Yeong Mun Hong [@mxrcxsz12](https://github.com/Mxrcxsz)
+### Problem
+
+A single Agent can work independently, but some tasks benefit from multiple specialised Agents collaborating together. Without a coordination layer, Agents may not share context, respond in an unpredictable order, repeat previous work, or leave the task running indefinitely.
+
+Users also need to understand:
+
+* Which Agents are participating.
+* Which Agent is currently acting.
+* What each Agent contributed.
+* How the shared task is progressing.
+* Whether an Agent timed out or repeated an earlier response.
+* Whether the group task completed successfully.
+
+### Solution
+
+The Avengers introduces a lightweight group-chat style coordination middleware.
+
+A user creates a group task by writing a prompt and mentioning the Agents they want to involve:
+
+```text
+@ResearchAgent @CodingAgent @TestingAgent
+review this project and propose improvements
+```
+
+The `GroupTaskService` identifies the mentioned Agents and creates a `GroupTaskCoordinator`. The coordinator creates a shared session, assigns the participating Agents a turn order, and routes the task between them.
+
+The main implementation is located in:
+
+```text
+apps/server/src/group-task-service.ts
+apps/server/src/group-task-coordinator.ts
+```
+
+The feature is exposed through the group-task API routes and a frontend panel that displays the live turn history.
+
+### How it works
+
+```text
+User creates a group task
+    ↓
+Agents are identified from @mentions
+    ↓
+A shared session is created
+    ↓
+The coordinator selects the next Agent
+    ↓
+The Agent receives the original task and shared history
+    ↓
+The Agent produces one contribution
+    ↓
+The contribution is recorded
+    ↓
+The next Agent continues
+```
+
+Each Agent receives the conversation history so that it can build on previous contributions rather than working in isolation.
+
+The coordinator uses a fixed round-robin order based on the order in which Agents were mentioned:
+
+```text
+Turn 1 → Research Agent
+Turn 2 → Coding Agent
+Turn 3 → Testing Agent
+Turn 4 → Research Agent
+```
+
+The shared `sessionId` connects all Runs and coordination events belonging to the same group task.
+
+### Shared state
+
+The coordinator maintains the state of the group task, including:
+
+* The task description.
+* The participating Agents.
+* The shared session ID.
+* The ordered list of turns.
+* The current task status.
+* Errors and completion time.
+* The maximum number of allowed turns.
+
+Each turn records:
+
+```text
+Turn ID
+Agent ID
+Agent name
+Contribution
+Timestamp
+```
+
+This allows the frontend to display a live, readable history of the group conversation.
+
+### Completion and failure handling
+
+The group task completes when an Agent ends its response with:
+
+```text
+[TASK COMPLETE]
+```
+
+The coordinator also prevents the task from continuing indefinitely by enforcing:
+
+* A maximum number of turns.
+* A per-turn timeout.
+* Duplicate-response detection.
+* Failure handling when an Agent does not complete successfully.
+
+For example:
+
+```text
+Agent does not respond in time
+    → group task fails with a timeout reason
+
+Agent repeats an earlier contribution
+    → group task fails as a duplicate-turn anomaly
+
+Agent produces [TASK COMPLETE]
+    → group task is marked completed
+```
+
+### Integration with governance middleware
+
+Multi-Agent coordination uses the same Agent governance layer as a normal Run.
+
+Before an Agent participates:
+
+```text
+Coordinator selects Agent
+    ↓
+canJoinSession ability is checked
+    ↓
+Agent is allowed or rejected
+    ↓
+Coordination event is recorded
+```
+
+Each Agent’s subsequent Run is also subject to its own ability and policy checks. This prevents the shared session from bypassing individual Agent permissions.
+
+Coordination events are written using the shared audit mechanism and include the relevant:
+
+```text
+User ID
+Agent ID
+Run ID
+Session ID
+Action
+Decision
+Reason
+Timestamp
+```
+
+This allows users to inspect both individual Agent actions and the complete Multi-Agent session in the audit interface.
+
+### Verification
+
+The coordination logic was tested with a stubbed Agent Runner so that tests do not require model tokens or external API calls.
+
+The tests cover:
+
+* A normal countdown-style group task completing successfully.
+* Agents taking turns in the expected order.
+* Shared conversation history being passed between turns.
+* Duplicate-turn detection.
+* Stuck-Agent or timeout failure handling.
+* Maximum-turn protection.
+
+This demonstrates that the coordination layer can route turns and maintain shared state independently of the model provider.
 
 
 # Architecture and Design Summary
