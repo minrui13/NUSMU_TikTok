@@ -58,7 +58,6 @@ ARK_MODEL=ep-replace-with-your-endpoint-id
 ARK_BASE_URL=https://ark.cn-beijing.volces.com/api/v3
 ```
 
-> Never commit real API keys, passwords, bearer tokens, or other secrets to GitHub.
 
 ## 4. Start Docker Desktop
 
@@ -1271,7 +1270,8 @@ This demonstrates that the coordination layer can route turns and maintain share
 
 
 # Architecture and Design Summary
-
+## Architecture
+<img width="2912" height="2356" alt="TechJam" src="https://github.com/user-attachments/assets/2f3fc106-59f6-4e07-b524-a37bb06d0f0c" />
 
 ## Design Summary
 The Avengers uses layered enforcement:
