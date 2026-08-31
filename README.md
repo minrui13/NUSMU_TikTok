@@ -444,6 +444,26 @@ The group task completes when an Agent produces the `[TASK COMPLETE]` marker, or
 
 In this way, the Avengers can collaborate—but every hero still has a defined power set, every action is governed, and every important event leaves a trace.
 
+## Middleware Summary
+| Middleware capability | Category | What it does | Main benefit |
+|---|---|---|---|
+| **Identity and authorisation** | Identity and Policy | Identifies the human user, Agent, or system coordinator responsible for an action. | Provides accountability and prevents actions from being treated as anonymous. |
+| **Per-Agent abilities** | Identity and Policy | Gives each Agent a configurable set of abilities, such as reading files, writing files, running commands, accessing secrets, using the network, and joining shared sessions. | Applies least privilege so that each Agent receives only the capabilities it needs. |
+| **Policy checker** | Identity and Policy | Compares the abilities requested by a task with the permissions granted to the Agent. | Enforces permissions in the backend rather than relying on frontend controls. |
+| **Action classification** | Threat Detection and Safety | Analyses the user’s prompt to estimate which abilities may be required. | Allows the platform to evaluate a task before it reaches the Agent Runtime. |
+| **Agent Immune risk scoring** | Threat Detection and Safety | Detects suspicious behaviour, assigns threat signals, and calculates a risk score from 0 to 100. | Distinguishes between ordinary actions, suspicious actions, and severe threats. |
+| **Risk-based enforcement** | Threat Detection and Safety | Allows low-risk actions, sends higher-risk actions for review, and automatically blocks actions above the blocking threshold. | Prevents dangerous actions from executing without appropriate oversight. |
+| **Human approval workflow** | Identity and Policy | Pauses high-risk permitted Runs until a human explicitly approves or denies the specific Run. | Separates standing Agent permission from one-time approval for risky actions. |
+| **Immune Memory** | Threat Detection and Safety | Stores confirmed threat patterns and uses them as additional signals when similar requests appear later. | Allows the system to learn from previous security decisions. |
+| **Identity-aware Immune Memory** | Threat Detection and Safety | Associates previous approvals or rejections with relevant users, Agents, or roles instead of applying them universally. | Prevents an approval in one context from automatically authorising a different user or department. |
+| **Secret redaction** | Data Protection | Detects known secrets and common credential formats in prompts, responses, errors, tool output, and audit records. | Prevents API keys, tokens, and credentials from appearing in storage, logs, or the UI. |
+| **Audit events** | Observability and Governance | Records the user, Agent, Run, session, action, risk, decision, reason, prompt, and timestamp. | Provides a permanent explanation of what happened and why. |
+| **Audit history UI** | Observability and Governance | Displays allowed, denied, pending, security, and coordination events. | Turns invisible middleware decisions into visible evidence for users and reviewers. |
+| **Multi-Agent coordination** | Coordination | Connects multiple Agents through a shared session and routes turns between them. | Allows Agents to collaborate while preserving shared state and turn order. |
+| **Session tracking** | Coordination and Observability | Associates related Multi-Agent Runs and events with a shared `sessionId`. | Makes it possible to reconstruct and inspect an entire group task. |
+| **Agent participation control** | Coordination and Identity | Uses `canJoinSession` to control whether an Agent may participate in a shared session. | Prevents unauthorised Agents from joining Multi-Agent tasks. |
+| **Turn and failure control** | Coordination and Reliability | Detects duplicate responses, timeouts, skipped turns, and maximum-turn violations. | Prevents group tasks from becoming stuck, inconsistent, or repetitive. |
+
 # Design Summary
 
 The Avengers uses layered enforcement:
