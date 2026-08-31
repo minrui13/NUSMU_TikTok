@@ -2,6 +2,17 @@ import { Ability, Risk } from "../types/abilities.js";
 
 import { abilityRisk } from "./permissions.js";
 
+// Human-readable labels for each ability, so reasons shown to a user
+// never surface the raw camelCase identifier (e.g. "canReadWorkspace").
+export const abilityLabel: Record<Ability, string> = {
+  canReadWorkspace: "Read workspace files",
+  canWriteWorkspace: "Write workspace files",
+  canRunCommand: "Run commands",
+  canAccessSecrets: "Access secrets",
+  canUseNetwork: "Use network",
+  canJoinSession: "Join shared sessions",
+};
+
 export type Decision = "allowed" | "denied" | "pending_approval";
 
 export interface PolicyResult {
@@ -30,13 +41,14 @@ export function checkAbility(
 ): PolicyResult {
   const risk = abilityRisk[ability];
   const granted = grantedAbilities.includes(ability);
+  const label = abilityLabel[ability];
 
   if (granted && (risk === "low" || risk === "medium")) {
     return {
       ability,
       risk,
       decision: "allowed",
-      reason: `${ability} is granted`,
+      reason: `${label} is granted`,
     };
   }
 
@@ -45,7 +57,7 @@ export function checkAbility(
       ability,
       risk,
       decision: "pending_approval",
-      reason: `${ability} (${risk} risk) requires human approval`,
+      reason: `${label} (${risk} risk) requires human approval`,
     };
   }
   return {
@@ -53,8 +65,8 @@ export function checkAbility(
     risk,
     decision: "denied",
     reason: granted
-      ? `${ability} (${risk} risk) is not permitted` // Should not happen given the logic above, but just in case
-      : `${ability} is not granted to this Agent`,
+      ? `${label} (${risk} risk) is not permitted`
+      : `${label} is not granted to this Agent`,
   };
 }
 

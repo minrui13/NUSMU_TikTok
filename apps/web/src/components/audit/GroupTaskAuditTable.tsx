@@ -17,6 +17,7 @@ import "../../styles/audit.css";
 import { formatTime } from "../../App";
 import { useAuditFilters } from "../../hooks/useAuditFilters";
 import { AuditFilterBar } from "./AuditFilterBar";
+import { humanizeAction } from "../../utils/humanizeAction";
 
 const useStyles = makeStyles(() => ({
   container: {
@@ -122,7 +123,13 @@ export function GroupTaskAuditTable({ agents }: Props) {
                 .filter((e) => e.sessionId === sessionId)
                 .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
                 .map((event) => (
-                  <TableRow className="audit-log-table-row" key={event.id}>
+                  <TableRow
+                    className={`audit-log-table-row ${event.actor === "system"
+                        ? "audit-log-row-system"
+                        : "audit-log-row-user"
+                      }`}
+                    key={event.id}
+                  >
                     <TableCell className="audit-log-table-cell">
                       {formatTime(event.createdAt)}
                     </TableCell>
@@ -130,7 +137,7 @@ export function GroupTaskAuditTable({ agents }: Props) {
                       {agentName(event.agentId)}
                     </TableCell>
                     <TableCell className="audit-log-table-cell">
-                      {event.action}
+                      {humanizeAction(event.action)}
                     </TableCell>
                     <TableCell className="audit-log-table-cell">
                       <Chip
