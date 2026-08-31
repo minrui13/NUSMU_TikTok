@@ -242,6 +242,7 @@ export class AgentService {
       );
     }
     const timestamp = now();
+    const safePrompt = redactSecrets(prompt, getKnownSecrets());
     const runId = randomUUID();
     const run: AgentRun = {
       id: runId,
@@ -249,7 +250,7 @@ export class AgentService {
       sessionId,
       status: "queued",
       risk: null,
-      prompt,
+      prompt: safePrompt,
       output: null,
       error: null,
       usage: null,
@@ -262,7 +263,7 @@ export class AgentService {
       agentId,
       runId,
       role: "user",
-      content: prompt,
+      content: safePrompt,
       createdAt: timestamp,
     };
 
@@ -432,7 +433,7 @@ export class AgentService {
         const event = this.immune.createThreatEvent({
           agentId: agentAtStart.id,
           runId: run.id,
-          prompt: run.prompt,
+          prompt: redactSecrets(run.prompt, getKnownSecrets()),
           assessment,
         });
         const completedAt = now();
@@ -559,11 +560,12 @@ export class AgentService {
   // if the policy allows, denies or pauses the action,
   // if a human approves or rejects a pending action
   private async recordAudit(entry: AuditEntry): Promise<void> {
+    const safeEntry = redactSecrets(entry, getKnownSecrets());
     await this.store.mutate((database) => {
       database.auditEvents.push({
         id: randomUUID(),
         createdAt: now(),
-        ...entry,
+        ...safeEntry,
       });
     });
   }

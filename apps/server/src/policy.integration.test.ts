@@ -259,6 +259,25 @@ describe("policy enforcement via direct API calls (bypassing the UI)", () => {
     await app.close();
   });
 
+  it("does not expose generic secrets through persisted runs or messages", async () => {
+    const app = await buildTestApp();
+    const agent = await createAgent(app);
+    const secret = "sk-abcdef1234567890";
+    const response = await app.inject({
+      method: "POST",
+      url: `/api/agents/${agent.id}/messages`,
+      headers: { "x-user-id": "alice" },
+      payload: { content: `run the build command with ${secret}` },
+    });
+    expect(response.statusCode).toBe(403);
+    const runs = await app.inject({ method: "GET", url: `/api/agents/${agent.id}/runs` });
+    const messages = await app.inject({ method: "GET", url: `/api/agents/${agent.id}/messages` });
+    expect(JSON.stringify(response.json())).not.toContain(secret);
+    expect(JSON.stringify(runs.json())).not.toContain(secret);
+    expect(JSON.stringify(messages.json())).not.toContain(secret);
+    await app.close();
+  });
+
   it("rejects invalid ability and approval payloads", async () => {
     const app = await buildTestApp();
     const agent = await createAgent(app);
