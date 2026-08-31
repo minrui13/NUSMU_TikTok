@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
+
 import { AgentImmuneEngine } from "./agent-immune.js";
+
 import type { ImmuneMemory } from "./types.js";
 
 describe("Agent Immune", () => {

@@ -1,7 +1,9 @@
-import { RunCancelledError } from "./errors.js";
 import { execFile } from "node:child_process";
 import { type ChildProcess, spawn } from "node:child_process";
 import { promisify } from "node:util";
+
+import { RunCancelledError } from "./errors.js";
+
 import type { AppConfig } from "./config.js";
 import type {
   AgentRunner,

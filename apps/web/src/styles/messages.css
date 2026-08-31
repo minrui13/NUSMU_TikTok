@@ -1,0 +1,13 @@
+.message-actions.pending {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.message-label.pending {
+  color: rgb(187, 0, 0);
+}
+
+.message-label.deny {
+  color: rgb(237, 108, 2);
+}

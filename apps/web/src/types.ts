@@ -1,4 +1,5 @@
-import { Ability } from "./types/abilities";
+import { Ability, Risk } from "./types/abilities";
+import { AuditEvent } from "./types/audits";
 
 export type AgentStatus = "ready" | "busy" | "stopped" | "error";
 export type RunStatus =
@@ -6,7 +7,8 @@ export type RunStatus =
   | "running"
   | "completed"
   | "failed"
-  | "cancelled";
+  | "cancelled"
+  | "pending_approval";
 export type GroupTaskStatus = "running" | "completed" | "failed";
 
 export interface GroupTaskTurn {
@@ -46,7 +48,7 @@ export interface Message {
   id: string;
   agentId: string;
   runId: string;
-  role: "user" | "assistant";
+  role: "user" | "assistant" | "system";
   content: string;
   createdAt: string;
 }
@@ -56,6 +58,7 @@ export interface AgentRun {
   agentId: string;
   status: RunStatus;
   prompt: string;
+  risk: Risk | null;
   output: string | null;
   error: string | null;
   usage: {
@@ -129,3 +132,7 @@ export interface ImmuneMemory {
 }
 export type View = "playground" | "abilities" | "audit" | "approvals";
 
+export type ToastItem =
+  | { kind: "deny"; event: AuditEvent; agentName: string }
+  | { kind: "pending"; event: AuditEvent; agentName: string }
+  | { kind: "allowed"; run: AgentRun; agentName: string };

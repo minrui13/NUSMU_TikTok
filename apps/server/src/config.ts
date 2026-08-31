@@ -1,6 +1,7 @@
-import { z } from "zod";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
+
+import { z } from "zod";
 
 const envSchema = z.object({
   HOST: z.string().default("0.0.0.0"),

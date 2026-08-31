@@ -1,6 +1,15 @@
 import { Ability, AbilityBody } from "./types/abilities";
 import { AuditEvent } from "./types/audits";
-import type { Agent, AgentRun, GroupTaskState, Message, SystemInfo, ImmuneThreatEvent, ImmuneMemory } from "./types";
+
+import type {
+  Agent,
+  AgentRun,
+  GroupTaskState,
+  ImmuneMemory,
+  ImmuneThreatEvent,
+  Message,
+  SystemInfo,
+} from "./types";
 
 export class ApiError extends Error {
   constructor(
@@ -71,6 +80,7 @@ export const api = {
     }),
   messages: (id: string) =>
     request<{ messages: Message[] }>("/api/agents/" + id + "/messages"),
+  allRuns: () => request<{ runs: AgentRun[] }>("/api/runs"),
   runs: (id: string) =>
     request<{ runs: AgentRun[] }>("/api/agents/" + id + "/runs"),
   sendMessage: (id: string, content: string) =>

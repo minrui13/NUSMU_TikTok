@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+
 import type { AgentService } from "./agent-service.js";
 import type { MentionableAgent } from "./mention-parser.js";
 
@@ -152,7 +153,7 @@ export class GroupTaskCoordinator {
     while (Date.now() < deadline) {
       const run = this.service.getRun(runId);
       if (["completed", "failed", "cancelled"].includes(run.status))
-        return true;
+        {return true;}
       await new Promise((resolve) => setTimeout(resolve, 50));
     }
     return false;

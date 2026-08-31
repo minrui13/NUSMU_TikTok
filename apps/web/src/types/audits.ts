@@ -9,5 +9,6 @@ export interface AuditEvent {
   risk: "low" | "medium" | "high" | "critical" | null;
   decision: "allowed" | "denied" | "pending_approval";
   reason: string | null;
+  prompt: string | null;
   createdAt: string;
 }
