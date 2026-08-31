@@ -1,3 +1,19 @@
+# NUSMU 
+Members: 
+* Goh Min Rui (@minrui13) 
+* Su Myat Myat Htay (@sumyatmyathtay) 
+* Marcus Yeong Mun Hong (@mxrcxsz12) 
+* Tham Jodena (@j0-oj)
+# SetUp Instructions
+1. Clone respository
+`git clone https://github.com/minrui13/NUSMU_TikTok.git`
+`cd NUSMU_TikTok`
+2. Install Dependencies
+`npm install`
+3. Configure env
+`cp .env.example .env`
+#### Add API keys & App token
+
 # Setup Instructions
 
 ## 1. Clone the repository
