@@ -1,121 +1,261 @@
-# NUSMU 
-Members: 
-* Goh Min Rui (@minrui13) 
-* Su Myat Myat Htay (@sumyatmyathtay) 
-* Marcus Yeong Mun Hong (@mxrcxsz12) 
-* Tham Jodena (@j0-oj)
-# SetUp Instructions
-1. Clone respository
-`git clone https://github.com/minrui13/NUSMU_TikTok.git`
-`cd NUSMU_TikTok`
-2. Install Dependencies
-`npm install`
-3. Configure env
-`cp .env.example .env`
-* Add API keys & App token
+# Setup Instructions
+
+## 1. Clone the repository
+
+```bash
+git clone https://github.com/minrui13/NUSMU_TikTok.git
+cd NUSMU_TikTok
 ```
+
+## 2. Install dependencies
+
+```bash
+npm install
+```
+
+## 3. Configure environment variables
+
+Copy the example environment file:
+
+```bash
+cp .env.example .env
+```
+
+Update `.env` with your local configuration:
+
+```env
 APP_AUTH_TOKEN=super-secret-local-dev-token-12345
 
 ARK_API_KEY=replace-with-your-ark-api-key
 ARK_MODEL=ep-replace-with-your-endpoint-id
 ARK_BASE_URL=https://ark.cn-beijing.volces.com/api/v3
 ```
-4. Start Docker Destop
-5. Run `npm run poc`
 
-# Project Intro 
+> Never commit real API keys, passwords, bearer tokens, or other secrets to GitHub.
+
+## 4. Start Docker Desktop
+
+Ensure Docker Desktop is running before starting the platform.
+
+## 5. Start the local platform
+
+```bash
+npm run poc
+```
+
+Open the platform at:
+
+```text
+http://localhost:3000
+```
+
+# Project Introduction
+
 ## The Avengers
-The Avengers is a middleware layer for the Agent Launchpad that makes AI Agent actions safer, more accountable, and easier to understand.
 
-## Problem Statement 
-As mentioned in the problem statement, the AI Agents in the Agent Launchpad are capable of performing any task to fulfill a user's prompt. However, just like any of us, we aren't always aware of exactly what an Agent is attempting to do. An Agent might receive more permissions than it needs, accidentally expose credentials, access another Agent's workspace, or execute a dangerous action without human oversight. Additionally, when multi-agent collaboration is involved, it becomes crucial to know which Agent acted, which human initiated the task, how the Agents coordinated, and whether the shared session contains suspicious activity.
+**The Avengers** is a governance and coordination middleware layer for the Agent Launchpad.
 
-So we ask ourselves, as users, what do we need to know before letting an Agent act?
-* Who initiated this action?
-* What is the Agent attempting to do?
-* Is the Agent allowed to do it?
-* How risky is the action?
-* Should a human approve it?
-* What happened after the decision?
-* Can sensitive information appear in the logs or interface?
-* Which Agent produced a particular result in a shared session?
+The platform allows multiple specialised AI Agents to read files, write code, run commands, access external services, and collaborate with one another. The Avengers adds the security and coordination controls needed to make these capabilities safer, more accountable, and easier to understand.
 
-This is where we assemble our Avengers.
+Each Agent has its own:
 
-## Our Solution: Assemble the Avengers
-## 1. Create an Agent
-The user creates an Agent through the **Agent Launchpad** and gives it a name, description, and instructions.  
-When the Agent is created, it receives a least‑privilege ability profile:
+* Identity.
+* Ability profile.
+* Risk context.
+* Workspace.
+* Audit history.
+* Optional participation in shared group sessions.
 
-- **Read workspace files** → Enabled  
-- **Write workspace files** → Enabled  
-- **Run shell commands** → Disabled  
-- **Access secrets** → Disabled  
-- **Use network**  Disabled  
-- **Join shared sessions** → Disabled  
+Our goal is simple:
 
-> The user can manage these abilities through the **Abilities view**.  
-> Each ability includes a description and risk level so that the user can understand what the Agent is allowed to do.
+> Agents may be powerful, but they should not be trusted blindly.
 
-**Examples:**
-- A Documentation Agent may read and edit Markdown files but cannot run shell commands.  
-- A Testing Agent may run approved test commands but cannot access secrets.  
-- A Research Agent may use the network but cannot modify the workspace.  
+# Problem Statement
 
-> The Agent’s abilities are stored on the backend.  
-> The frontend only provides the interface for managing them; it is not responsible for enforcing them.
----
-## 2. Send the Agent a Task
-The user selects an Agent in the **Playground** and sends a prompt.
-**Example:**
-Prompt: "Run the project tests and fix any failures."
-Before the task reaches the Agent Runtime, the middleware evaluates it:
+AI Agents can perform complex tasks on behalf of users. However, an Agent may not always behave exactly as the user expects. It may request excessive permissions, attempt to access sensitive resources, expose credentials, perform destructive actions, or communicate with an unsafe external service.
+
+These risks become more complicated when multiple Agents collaborate. Users need to know which Agent acted, which human initiated the task, how the Agents coordinated, and whether a suspicious action occurred during the shared session.
+
+Without middleware, users may not know:
+
+* Who initiated an action.
+* What the Agent is attempting to do.
+* Whether the Agent is allowed to perform the action.
+* How risky the action is.
+* Whether human approval is required.
+* Why an action was allowed or blocked.
+* Whether sensitive information appeared in the logs.
+* Which Agent produced a particular result.
+* Whether a group task completed correctly.
+
+This is the problem The Avengers addresses.
+
+# Our Solution: Assemble the Avengers
+
+The Avengers combines identity, Agent abilities, threat detection, human approval, secret redaction, auditability, and Multi-Agent coordination into one governance layer.
+
+The overall flow is:
+
+```text
+Human user
+    ↓
+Agent or Multi-Agent task
+    ↓
+Identity and ability checks
+    ↓
+Threat detection and risk scoring
+    ↓
+Allow, deny, or request approval
+    ↓
+Agent Runtime or GroupTaskCoordinator
+    ↓
+Redacted output and audit evidence
 ```
+
+## 1. Create and configure an Agent
+
+The user creates an Agent through the Agent Launchpad and provides its name, description, and instructions.
+
+Each Agent receives a least-privilege ability profile by default:
+
+| Ability               | Default state | Risk     |
+| --------------------- | ------------- | -------- |
+| Read workspace files  | Enabled       | Low      |
+| Write workspace files | Enabled       | Medium   |
+| Run shell commands    | Disabled      | High     |
+| Access secrets        | Disabled      | Critical |
+| Use network           | Disabled      | High     |
+| Join shared sessions  | Disabled      | Medium   |
+
+Users can manage these abilities through the **Abilities** view. The interface shows each ability’s purpose and risk level so that users can make informed decisions.
+
+For example:
+
+* A Documentation Agent can read and edit Markdown files but cannot run shell commands.
+* A Testing Agent can run approved test commands but cannot access secrets.
+* A Research Agent can use the network but cannot modify the workspace.
+* A Coordination Agent can participate in shared sessions but cannot access secrets.
+
+The Agent’s abilities are stored and enforced on the backend. The frontend provides the management interface, but it is not treated as a security boundary.
+
+## 2. Send the Agent a task
+
+The user selects an Agent in the Playground and sends a prompt.
+
+For example:
+
+```text
+Run the project tests and fix any failures.
+```
+
+Before the task reaches the Agent Runtime, The Avengers evaluates it:
+
+```text
 User prompt
-↓
+    ↓
 Action classification
-↓
+    ↓
 Agent Immune threat detection
-↓
+    ↓
 Risk scoring
-↓
-Ability and policy check
+    ↓
+Ability and policy evaluation
 ```
-The middleware identifies the capabilities that may be required, such as reading files, writing files, running commands, accessing secrets, or using the network.
 
----
-## 3. Middleware makes the decision
-The middleware compares the requested capabilities with the Agent’s permission profile.
-If the Agent does not have the required ability, the request is denied before execution:
-**Example:**
-The Agent does not have `canRunCommand`. 
-→ The Run is blocked. 
-→ The Agent Runtime is never called. 
-→ A reason is shown to the user. 
-→ An audit event is recorded.
+The system identifies capabilities that may be required, including:
 
----
-## 4. High-Risk Actions Require Approval
+* Reading workspace files.
+* Writing or deleting files.
+* Running shell commands.
+* Accessing secrets.
+* Using the network.
+* Joining a shared session.
 
-Having an ability does not always mean that an action can run immediately.  
+## 3. The middleware makes a policy decision
 
-- **Low- and medium-risk actions** → proceed when the Agent has the required ability.  
-- **High- and critical-risk actions** → require an additional human decision.
+The policy layer compares the requested capabilities with the Agent’s permissions and the calculated risk.
 
-**Example:**
-Agent has `canRunCommand` 
+The decision rules are:
+
+| Condition                                       | Result                 |
+| ----------------------------------------------- | ---------------------- |
+| Ability is not granted                          | Denied                 |
+| Ability is granted and risk is low or medium    | Allowed                |
+| Ability is granted and risk is high or critical | Pending human approval |
+| Threat score reaches the blocking threshold     | Automatically blocked  |
+
+For example:
+
+```text
+Agent does not have canRunCommand
+    ↓
+Run is denied
+    ↓
+Agent Runtime is never called
+    ↓
+Reason is shown to the user
+    ↓
+Audit event is recorded
+```
+
+The user sees a clear explanation:
+
+```text
+Action blocked
+
+This Agent does not have permission to run shell commands.
+```
+
+The denial is also saved in the Agent’s conversation history and audit record.
+
+## 4. High-risk actions require human approval
+
+Having an ability does not always mean that an action can execute immediately.
+
+A granted ability gives an Agent permission to request a capability. High-risk and critical actions require a second, explicit human decision for that particular Run.
+
+For example:
+
+```text
+Agent has canRunCommand
 + command execution is high risk
-+ → Run becomes pending_approval
-The user will be prompted to either approve or deny the agent of the request:
-* If the user approves the request, the Agent Runtime executes the Run.
-* If the user denies it, the Run is stopped. Both decisions are recorded in the audit history.
-- Both decisions are recorded in the audit history.
-> Changing an Agent’s permissions does not automatically approve an existing pending Run. 
-> The user must explicitly approve that particular Ru
----
+→ Run becomes pending_approval
+```
+
+The user sees:
+
+```text
+Approval required
+
+The Agent wants to run a high-risk command.
+
+[Approve] [Deny]
+```
+
+If the user approves the request:
+
+```text
+Run continues
+→ Agent Runtime executes
+→ Approval is recorded
+```
+
+If the user denies it:
+
+```text
+Run stops
+→ Agent does not execute
+→ Denial is recorded
+```
+
+Changing an Agent’s permissions does not automatically approve an existing pending Run. The user must explicitly approve that specific Run.
+
 ## 5. Agent Immune detects suspicious behaviour
-In parallel with the ability check, Agent Immune analyses the request for suspicious patterns.
+
+Agent Immune analyses prompts for suspicious patterns before they reach the runtime.
+
 It can identify:
+
 * Prompt injection.
 * Credential access.
 * Sensitive resource access.
@@ -124,56 +264,144 @@ It can identify:
 * Workspace escape.
 * Destructive actions.
 * Privilege escalation.
-* 
-The system calculates a risk score and applies the configured thresholds:
-- **0–39** → Allow  
-- **40–79** → Human review  
-- **80–100** → Automatically block
-  
-**Example:**
-- **Credential request** +25 
-- **External data transmission** +20 
-- **Suspicious network destination** +12 
-- **Credential and exfiltration** +10 
-- **Sensitive resource access** +18 
------------------------------------------------- 
-- **Final risk** 85
-Because the final score is 85, the request is automatically blocked before reaching the runtime.
----
-## 7. Secrets Are Protected
-If a prompt, response, error, tool result, or audit event contains a credential or token, the redaction layer removes or replaces it before the content is stored or displayed.
-**Example:**
-**Before:**
+
+The system calculates a risk score between 0 and 100:
+
+| Risk score | Decision            |
+| ---------: | ------------------- |
+|       0–39 | Allow               |
+|      40–79 | Human review        |
+|     80–100 | Automatically block |
+
+For example:
+
+```text
+Credential request              +25
+External data transmission      +20
+Suspicious network destination  +12
+Credential and exfiltration     +10
+Sensitive resource access       +18
+------------------------------------------------
+Final risk                       85
+```
+
+Because the final score is 85, the request is automatically blocked before reaching the Agent Runtime.
+
+## 6. Immune Memory learns from confirmed threats
+
+When a suspicious event is reviewed and confirmed, Agent Immune stores the pattern in Immune Memory.
+
+If a similar prompt appears later, the previous confirmed threat can increase the new risk score:
+
+```text
+Static risk       60
+Immune Memory    +18
+--------------------
+Final risk        78
+```
+
+Immune Memory is context-aware. A previous approval or rejection can be associated with the relevant Agent, user, or role rather than being applied blindly to everyone.
+
+For example:
+
+```text
+Frontend developer requests .env access
+→ Tom confirms the request is legitimate
+→ approval is remembered for that context
+
+Marketing Agent requests .env access
+→ previous frontend approval does not automatically apply
+→ human review is required
+```
+
+If previous decisions are inconsistent, the system remains uncertain and continues requesting human review instead of learning an unsafe rule.
+
+## 7. Secrets are protected
+
+The redaction layer protects sensitive values before they are persisted or displayed.
+
+Redaction applies to:
+
+* User prompts.
+* Agent responses.
+* Audit events.
+* Error messages.
+* Runtime output.
+* Tool output.
+* API responses.
+* Conversation history.
+
+The system detects configured secrets and common credential formats, including API keys, endpoint identifiers, and bearer tokens.
+
+```text
+Before:
 Authorization: Bearer abc123...
-**After:**
+
+After:
 Authorization: [REDACTED]
+```
 
-This prevents sensitive values from appearing in the conversation history, audit table, logs, screenshots, or frontend responses.
+This prevents sensitive values from appearing in the audit table, browser interface, logs, screenshots, or stored Agent history.
 
----
-## 8. Every Important Decision Is Recorded
+## 8. Every important decision is recorded
 
-The **audit history** provides a permanent explanation of what happened.  
-Each event can record:
-* User
-* Agent
-* Run
-* Session
-* Action
-* Risk
-* Decision
-* Reason
-* Timestamp
-  
-The audit table allows users to review both successful and unsuccessful actions. This turns the middleware from an invisible security check into visible evidence that the Agent was governed.
+The audit history provides a permanent explanation of what happened.
 
----
-## 9. Alternative Flow: Assemble the Avengers
-Users can add a group task, where they involved multiple agents to do a task.
-The overarching idea: 
+An audit event can record:
+
+```text
+User
+Agent
+Run
+Session
+Action
+Risk
+Decision
+Reason
+Prompt
+Timestamp
+```
+
+For example:
+
+```text
+User: user-demo-001
+Agent: Testing Agent
+Action: canRunCommand
+Risk: High
+Decision: Pending approval
+Reason: High-risk command execution requires human approval
+```
+
+The audit view allows users to review:
+
+* Allowed actions.
+* Denied actions.
+* Pending approvals.
+* Human approval decisions.
+* Threat detections.
+* Secret-redaction events.
+* Multi-Agent coordination events.
+
+Single-Agent and Multi-Agent events use the same audit format. Events with a `sessionId` belong to a shared group task, while events without one belong to a standalone Agent Run.
+
+## 9. Alternative flow: Assemble the Avengers as a team
+
+Users can create a group task by mentioning multiple Agents:
+
+```text
+@ResearchAgent @CodingAgent @TestingAgent
+review this project and propose improvements
+```
+
+The `GroupTaskCoordinator` creates a shared session and routes turns between the participating Agents.
+
+```text
 User creates group task
     ↓
 Mentioned Agents are identified
+    ↓
+Each Agent’s canJoinSession ability is checked
     ↓
 A shared session is created
     ↓
@@ -184,12 +412,76 @@ The Agent receives the shared conversation history
 The Agent produces a turn
     ↓
 The next Agent continues
-Each Agent remains subject to its own ability and policy checks. The coordinator also records the participating Agent, turn order, and shared `sessionId`.
-**Example:**
-The group task can show:
+```
+
+Each Agent remains subject to its own ability and policy checks. The coordinator records:
+
+* The participating Agent.
+* The human who initiated the task.
+* The shared `sessionId`.
+* The turn order.
+* Each Agent’s contribution.
+* Timeouts and failures.
+* Duplicate or skipped turns.
+* The final group-task status.
+
+A group task may produce:
+
+```text
 Turn 1 → Research Agent
 Turn 2 → Coding Agent
 Turn 3 → Testing Agent
+```
 
-The coordinator detects duplicate responses, timeouts, skipped turns, and completion markers. All coordination activity is stored in the same audit system as single-Agent Runs.
+The group task completes when an Agent produces the `[TASK COMPLETE]` marker, or fails when the coordinator detects a timeout, duplicate response, skipped turn, or maximum-turn limit.
 
+In this way, the Avengers can collaborate—but every hero still has a defined power set, every action is governed, and every important event leaves a trace.
+
+# Design Summary
+
+The Avengers uses layered enforcement:
+
+```text
+Identity and authorisation
+    ↓
+Per-Agent abilities
+    ↓
+Threat detection and risk scoring
+    ↓
+Human approval or automatic blocking
+    ↓
+Agent Runtime or Multi-Agent coordinator
+    ↓
+Secret redaction
+    ↓
+Audit storage and visual evidence
+```
+
+The key design principles are:
+
+* **Least privilege:** Agents receive only the capabilities they need.
+* **Backend enforcement:** Security decisions are made outside the frontend.
+* **Human oversight:** High-risk actions require explicit approval.
+* **Context-aware learning:** Immune Memory does not blindly generalise decisions across different users or roles.
+* **Explainability:** Users can understand why an action was allowed or blocked.
+* **Traceability:** Single-Agent Runs and Multi-Agent Sessions are linked through IDs.
+* **Defence in depth:** Abilities, threat scoring, approval, redaction, and audit logging work together.
+
+# Limitations
+
+* The ability catalogue is predefined. Users can manage existing abilities but cannot create arbitrary custom abilities.
+* Prompt classification and threat detection are heuristic and may produce false positives or false negatives.
+* A prompt classifier cannot guarantee that it predicts every action an Agent may perform.
+* Human approval is simplified and does not yet include detailed approval roles, expiry rules, escalation policies, or delegated approval authority.
+* Approval is handled at the Run level rather than through a full enterprise approval workflow.
+* The current identity system is lightweight and does not represent production-grade authentication.
+* Frontend controls are not treated as a security boundary; enforcement occurs in the backend.
+* Audit events are stored in a local JSON store and are not immutable, tamper-proof, or designed for high-volume production workloads.
+* The audit table only displays events produced by the implemented middleware and may not capture every internal operation performed by the runtime.
+* Notifications and audit updates use polling, so the interface may have a short delay before showing new events.
+* Secret redaction depends on known secret values and supported credential patterns.
+* Immune Memory relies on previously confirmed patterns and does not provide perfect threat intelligence.
+* The Multi-Agent coordinator is intentionally lightweight and does not provide a full distributed messaging or scheduling system.
+* `canJoinSession` controls participation in the implemented coordinator but does not prevent every possible form of Agent-to-Agent privilege escalation.
+* The local container runtime is not a hardened multi-tenant isolation boundary.
+* Risk thresholds are prototype rules and are not formally calibrated security guarantees.
