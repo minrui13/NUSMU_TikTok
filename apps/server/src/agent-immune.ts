@@ -387,7 +387,7 @@ export class AgentImmuneEngine {
     // DECISION BANDS
     // ---------------------------------------------------------
 
-    const decision = score >= 70 ? "deny" : score >= 50 ? "review" : "allow";
+    const decision = score >= 70 ? "deny" : score >= 40 ? "review" : "allow";
 
     return {
       score,

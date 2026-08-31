@@ -1061,6 +1061,7 @@ export default function App() {
                           </span>
                         </div>
                       )}
+                      {/* REVIEW: human decision is required */}
                       {immuneEvent.reviewStatus === "pending" &&
                         immuneEvent.decision === "review" && (
                           <div className="immune-actions">
@@ -1072,7 +1073,7 @@ export default function App() {
                             </button>
 
                             <button
-                              className="button button-ghost"
+                              className="button button-danger"
                               onClick={() => void reviewImmuneEvent("confirm")}
                               disabled={busy}
                             >
@@ -1081,19 +1082,22 @@ export default function App() {
                           </div>
                         )}
 
+                      {/* DENY: already blocked automatically */}
                       {immuneEvent.decision === "deny" && (
                         <div className="immune-reviewed">
                           🛡 Automatically blocked — no human approval required
                         </div>
                       )}
 
-                      {immuneEvent.reviewStatus !== "pending" && (
-                        <div className="immune-reviewed">
-                          {immuneEvent.reviewStatus === "confirmed"
-                            ? "✓ Threat confirmed and added to Immune Memory"
-                            : "Marked as false positive"}
-                        </div>
-                      )}
+                      {/* Completed human review */}
+                      {immuneEvent.decision === "review" &&
+                        immuneEvent.reviewStatus !== "pending" && (
+                          <div className="immune-reviewed">
+                            {immuneEvent.reviewStatus === "confirmed"
+                              ? "✓ Threat confirmed and added to Immune Memory"
+                              : "✓ Approved by operator"}
+                          </div>
+                        )}
                     </article>
                   )}
 
