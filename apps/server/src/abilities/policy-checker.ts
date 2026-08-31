@@ -1,5 +1,6 @@
-import { abilityRisk } from "./permissions.js";
 import { Ability, Risk } from "../types/abilities.js";
+
+import { abilityRisk } from "./permissions.js";
 
 export type Decision = "allowed" | "denied" | "pending_approval";
 

@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { api, ApiError } from "./api";
+
+import { ApiError, api } from "./api";
+
 import type { Agent, GroupTaskState } from "./types";
 
 function formatTime(value: string): string {
@@ -70,16 +72,16 @@ export function GroupTaskPanel({
     <div className="modal-backdrop" role="dialog" aria-modal="true">
       <div className="modal">
         <div className="modal-header">
-          <h2>Group Task</h2>
+          <h2>{"Group Task"}</h2>
           <button className="icon-button" onClick={onClose} aria-label="Close">
-            ✕
+            {"✕\r"}
           </button>
         </div>
 
         {!task && (
           <div className="modal-body">
             <label>
-              Task description — mention Agents with @name
+              {"Task description — mention Agents with @name\r"}
               <textarea
                 rows={3}
                 value={description}
@@ -88,7 +90,7 @@ export function GroupTaskPanel({
               />
             </label>
             <div className="hint">
-              Available Agents:{" "}
+              {"Available Agents:"}{" "}
               {agents.map((a) => (
                 <code
                   key={a.id}
@@ -98,13 +100,13 @@ export function GroupTaskPanel({
                       : ""
                   }
                 >
-                  @{a.name}
+                  {"@"}{a.name}
                 </code>
               ))}
             </div>
             {mentionedAgents.length > 0 && (
               <div className="hint">
-                Participants in order:{" "}
+                {"Participants in order:"}{" "}
                 {mentionedAgents.map((a) => a.name).join(" → ")}
               </div>
             )}

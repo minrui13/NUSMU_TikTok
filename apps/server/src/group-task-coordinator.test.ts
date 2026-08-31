@@ -1,14 +1,17 @@
 import { mkdtemp, rm } from "node:fs/promises";
-import path from "node:path";
 import { tmpdir } from "node:os";
+import path from "node:path";
+
 import { afterEach, describe, expect, it } from "vitest";
+
 import { AgentService } from "./agent-service.js";
 import { loadConfig } from "./config.js";
 import { GroupTaskCoordinator } from "./group-task-coordinator.js";
 import { parseMentionedAgents } from "./mention-parser.js";
 import { JsonStore } from "./store.js";
-import type { AgentRunner, RunnerRequest, RunnerResult } from "./types.js";
 import { WorkspaceManager } from "./workspace.js";
+
+import type { AgentRunner, RunnerRequest, RunnerResult } from "./types.js";
 
 // Reads the shared history in the prompt and replies with the next
 // lower number, or the DONE marker once it reaches 1.

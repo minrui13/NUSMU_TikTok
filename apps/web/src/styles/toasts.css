@@ -1,0 +1,73 @@
+.prompt-status-toast {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 1000;
+  width: 340px;
+  padding: 10px 5px 18px 18px;
+  border: 2px solid #6a56db93;
+  border-radius: 14px;
+  background: #f2f1ed;
+  box-shadow: 0 7px 18px #5640c21c;
+  cursor: pointer;
+}
+
+.prompt-status-toast-close-btn {
+  display: flex;
+  justify-content: end;
+  color: rgba(0, 0, 0, 0.495);
+}
+.prompt-status-toast-close-btn button {
+  width: 10px;
+}
+
+.prompt-status-toast-header {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.prompt-status-toast-header-left {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+
+.prompt-status-toast-actions.pending {
+  display: flex;
+  align-items: center;
+  justify-content: end;
+  gap: 10px;
+  padding-right: 13px;
+}
+
+.prompt-status-toast-actions.deny {
+  margin-top: 10px;
+}
+
+.prompt-status-toast-actions button {
+  box-shadow: 0 7px 18px #5640c214;
+}
+
+.prompt-status-toast-body.deny .action {
+  color: rgb(237, 108, 2);
+}
+
+.prompt-status-toast-body.approve .action {
+  color: rgb(46, 125, 50);
+}
+
+.prompt-status-toast-body.pending .action {
+  color: rgb(211, 47, 47);
+}
+
+.prompt-status-toast-body .action {
+  margin-top: 3px;
+  margin-bottom: 2px;
+}
+
+.prompt-status-toast-body.deny .toast-reason {
+  margin-top: 5px;
+  margin-bottom: 5px;
+}
