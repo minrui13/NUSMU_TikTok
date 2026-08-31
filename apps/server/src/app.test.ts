@@ -40,7 +40,7 @@ describe("HTTP boundary", () => {
   });
 
   it("preserves Fastify client error status codes", async () => {
-    const app = await createApp(loadConfig({ NODE_ENV: "test" }), service);
+    const app = await createApp(loadConfig({ NODE_ENV: "test" }), service, groupTaskService);
     const malformed = await app.inject({
       method: "POST",
       url: "/api/agents",

@@ -5,6 +5,8 @@ import type {
   Agent,
   AgentRun,
   GroupTaskState,
+  ImmuneMemory,
+  ImmuneThreatEvent,
   Message,
   SystemInfo,
 } from "./types";
@@ -90,6 +92,15 @@ export const api = {
       },
     ),
   run: (id: string) => request<{ run: AgentRun }>("/api/runs/" + id),
+  immuneEvent: (runId: string) =>
+    request<{ event: ImmuneThreatEvent | null }>("/api/runs/" + runId + "/immune"),
+  immuneMemories: (agentId: string) =>
+    request<{ memories: ImmuneMemory[] }>("/api/agents/" + agentId + "/immune-memories"),
+  reviewImmuneEvent: (eventId: string, action: "confirm" | "dismiss") =>
+    request<{ event: ImmuneThreatEvent; memory: ImmuneMemory | null }>(
+      "/api/immune/events/" + eventId + "/review",
+      { method: "POST", body: JSON.stringify({ action }) },
+    ),
   approveRun: (id: string, body: { isApprove: boolean }) =>
     request<{ run: AgentRun }>("/api/runs/" + id + "/approve", {
       method: "POST",

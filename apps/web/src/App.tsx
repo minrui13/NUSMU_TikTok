@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ToastContainer, toast } from "react-toastify";
-import { ApiError, api, setAuthToken } from "./api";
 import { AbilitiesTable } from "./components/AbilitiesTable";
 import { FailedMessage } from "./components/messages/FailedMessage";
 import { PendingApprovalMessage } from "./components/messages/PendingApprovalMessage";
@@ -10,12 +9,14 @@ import { PendingApprovalToast } from "./components/toasts/PendingApprovalToast";
 import { GroupTaskPanel } from "./GroupTaskPanel";
 import { defaultAbilities } from "./types/abilities";
 
+import { api, ApiError, setAuthToken } from "./api";
 import type {
   Agent,
   AgentRun,
   Message,
   SystemInfo,
   ToastItem,
+  ImmuneThreatEvent,
   View,
 } from "./types";
 
@@ -63,6 +64,9 @@ export default function App() {
   const [form, setForm] = useState(emptyForm);
   const [prompt, setPrompt] = useState("");
   const [activeRun, setActiveRun] = useState<AgentRun | null>(null);
+  const [immuneEvent, setImmuneEvent] = useState<ImmuneThreatEvent | null>(
+    null,
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [authRequired, setAuthRequired] = useState<boolean | null>(null);
@@ -225,16 +229,26 @@ export default function App() {
 
   useEffect(() => {
     setActiveRun(null);
+    setImmuneEvent(null);
     setShowSettings(false);
+
     if (!selectedId) {
       setMessages([]);
       return;
     }
+
     void Promise.all([refreshMessages(selectedId), api.runs(selectedId)])
       .then(([, result]) => {
         if (selectedIdRef.current !== selectedId) return;
+
         const latest = result.runs[0] ?? null;
         setActiveRun(latest);
+        if (latest) {
+          void api.immuneEvent(latest.id).then((value) => {
+            if (selectedIdRef.current === selectedId)
+              setImmuneEvent(value.event);
+          });
+        }
         if (latest && ["queued", "running"].includes(latest.status)) {
           void pollRun(latest.id, selectedId).catch((reason) =>
             setError(reason instanceof Error ? reason.message : String(reason)),
@@ -344,7 +358,13 @@ export default function App() {
         await new Promise((resolve) => window.setTimeout(resolve, 900));
         if (!mountedRef.current) return;
         const result = await api.run(runId);
-        if (selectedIdRef.current === agentId) setActiveRun(result.run);
+        if (selectedIdRef.current === agentId) {
+          setActiveRun(result.run);
+          if (!["queued", "running"].includes(result.run.status)) {
+            const immune = await api.immuneEvent(runId);
+            setImmuneEvent(immune.event);
+          }
+        }
         if (!["queued", "running"].includes(result.run.status)) {
           await Promise.all([refreshMessages(agentId), refreshAgents()]);
           return;
@@ -368,7 +388,7 @@ export default function App() {
 
     setPrompt("");
     setError(null);
-
+    setImmuneEvent(null);
     try {
       const result = await api.sendMessage(selectedAgentId, content);
 
@@ -383,8 +403,9 @@ export default function App() {
           agent.id === selectedAgentId ? { ...agent, status: "busy" } : agent,
         ),
       );
-
       await pollRun(result.run.id, selectedAgentId);
+      const memoryResult = await api.immuneMemories(selected.id);
+      // if (selectedIdRef.current === selected.id) setImmuneMemories(memoryResult.memories);
     } catch (reason) {
       const message = reason instanceof Error ? reason.message : String(reason);
 
@@ -451,6 +472,20 @@ export default function App() {
   const navigateToView = (agentId: string | null, view: View) => {
     setSelectedId(agentId);
     setView(view);
+  };
+
+  const reviewImmuneEvent = async (action: "confirm" | "dismiss") => {
+    if (!immuneEvent) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await api.reviewImmuneEvent(immuneEvent.id, action);
+      setImmuneEvent(result.event);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setBusy(false);
+    }
   };
 
   const unlock = async (event: React.FormEvent) => {
@@ -613,7 +648,7 @@ export default function App() {
             className="button button-secondary group-task-button"
             onClick={() => setShowGroupTask(true)}
           >
-            <span className="button-icon">{"👥"}</span> {"Group Task\r"}
+            <span className="button-icon">👥</span> Group Task
           </button>
 
           <div className="sidebar-label">

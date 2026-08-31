@@ -8,6 +8,8 @@ const emptyDatabase = (): Database => ({
   agents: [],
   messages: [],
   runs: [],
+  immuneThreatEvents: [],
+  immuneMemories: [],
   auditEvents: [],
 });
 
@@ -27,6 +29,8 @@ export class JsonStore {
       }
       this.data = {
         ...parsed,
+        immuneThreatEvents: Array.isArray(parsed.immuneThreatEvents) ? parsed.immuneThreatEvents : [],
+        immuneMemories: Array.isArray(parsed.immuneMemories) ? parsed.immuneMemories : [],
         auditEvents: Array.isArray(parsed.auditEvents)
           ? parsed.auditEvents
           : [],
