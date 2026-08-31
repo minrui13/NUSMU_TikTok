@@ -84,10 +84,8 @@ export function AbilitiesView({
         <Table className={`abilities-table ${classes.table}`}>
           <TableHead className="abilities-table-head">
             <TableRow>
-              <TableCell className="abilities-table-cell abilities-sticky-column">
-                <p className="p-0" style={{ color: "rgba(79, 79, 79, 0.87)" }}>
-                  {"Agents\r"}
-                </p>
+              <TableCell className="abilities-table-cell abilities-sticky-column label">
+                <p className="p-0">{"Agents\r"}</p>
               </TableCell>
               {abilities.map((item) => (
                 <TableCell key={item.key} className="abilities-table-cell">
@@ -126,6 +124,7 @@ export function AbilitiesView({
                   return (
                     <TableCell key={ability.key}>
                       <Checkbox
+                        color="primary"
                         checked={checked}
                         disabled={isSaving}
                         onChange={() =>
