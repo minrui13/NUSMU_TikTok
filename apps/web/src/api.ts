@@ -38,9 +38,9 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
   const response = await fetch(url, {
     ...options,
     headers: {
-      "Content-Type": "application/json",
+      ...(options?.body ? { "Content-Type": "application/json" } : {}),
       "x-user-id": "user-demo-001",
-      Authorization: `Bearer ${authToken}`,
+      ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
       ...options?.headers,
     },
   });
@@ -73,7 +73,12 @@ export const api = {
     }),
   updateAgent: (
     id: string,
-    body: { name: string; description: string; instructions: string; role: AgentRole },
+    body: {
+      name: string;
+      description: string;
+      instructions: string;
+      role: AgentRole;
+    },
   ) =>
     request<{ agent: Agent }>("/api/agents/" + id, {
       method: "PATCH",
@@ -118,7 +123,11 @@ export const api = {
       "/api/immune/events/" + eventId + "/review",
       { method: "POST", body: JSON.stringify({ action }) },
     ),
-  approveRun: (id: string, body: { isApprove: boolean }, approver = "Tom (Administrator)") =>
+  approveRun: (
+    id: string,
+    body: { isApprove: boolean },
+    approver = "Tom (Administrator)",
+  ) =>
     request<{ run: AgentRun }>("/api/runs/" + id + "/approve", {
       method: "POST",
       headers: { "x-user-id": approver },
