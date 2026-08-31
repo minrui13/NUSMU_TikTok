@@ -717,10 +717,10 @@ Temporary notifications provide immediate feedback, while the stored system mess
 The main implementation is distributed across these backend areas:
 
 ```text
-apps/server/src/middleware/permissions.ts
+apps/server/src/abilities/permissions.ts
 → Ability definitions and risk levels
 
-apps/server/src/middleware/policy-checker.ts
+apps/server/src/abilities/policy-checker.ts
 → Ability evaluation and policy decisions
 
 apps/server/src/agent-service.ts
@@ -740,6 +740,263 @@ Together, these components turn Agent permissions from a frontend setting into a
 
 ## Immunity System 
 By Su Myat Myat Htay [@sumyatmyathtay](https://github.com/SuMyatMyatHtay)
+### Problem
+
+AI Agents can be manipulated into performing unsafe actions through malicious, ambiguous, or carefully worded prompts. These prompts may attempt to bypass instructions, access credentials, transmit sensitive information, escape the workspace, destroy files, or obtain elevated privileges.
+
+A simple permission check is not always enough. An Agent may have a particular ability enabled, but the specific request may still be suspicious or dangerous. The platform therefore needs a separate threat-detection layer that evaluates the request before it reaches the Agent Runtime.
+
+### Solution
+
+The Avengers introduces an **Agent Immune System** middleware that analyses each prompt before execution.
+
+The Immune System:
+
+* Detects suspicious threat patterns.
+* Groups threats into meaningful categories.
+* Assigns weighted risk signals.
+* Produces an overall score between 0 and 100.
+* Allows low-risk requests.
+* Holds suspicious requests for human review.
+* Automatically blocks high-risk requests.
+* Learns from previously confirmed threats through Immune Memory.
+
+The main implementation is located in:
+
+```text
+apps/server/src/agent-immune.ts
+```
+
+### How it works
+
+```text
+User prompt
+    ↓
+Agent Immune assessment
+    ↓
+Threat category detection
+    ↓
+Weighted score calculation
+    ↓
+Immune Memory comparison
+    ↓
+Final risk score
+    ↓
+Allow, review, or deny
+```
+
+The Immune System runs before the Agent Runtime. This ensures that suspicious requests can be stopped before the Agent receives an opportunity to read files, execute commands, access secrets, or use external services.
+
+### Threat categories
+
+The system currently detects the following categories:
+
+| Threat category           | Example behaviour                                                                             |
+| ------------------------- | --------------------------------------------------------------------------------------------- |
+| Prompt injection          | Attempting to ignore or override system instructions.                                         |
+| Sensitive resource access | Requesting `.env`, SSH keys, credential files, or runtime secrets.                            |
+| Credential access         | Requesting API keys, passwords, tokens, or private keys.                                      |
+| Data exfiltration         | Sending sensitive information to an external endpoint.                                        |
+| Suspicious network access | Referring to untrusted or ad-hoc destinations such as request collectors or webhook services. |
+| Workspace escape          | Attempting to access paths outside the Agent’s assigned workspace.                            |
+| Destructive action        | Deleting files, wiping a workspace, formatting a drive, or dropping a database.               |
+| Privilege escalation      | Attempting to bypass the sandbox, use `sudo`, run as root, or disable security controls.      |
+
+### Risk scoring
+
+Each detected signal contributes a weighted amount to the base risk score.
+
+For example:
+
+```text
+Credential request              +25
+External data transmission      +20
+Suspicious network destination  +12
+Sensitive resource access       +18
+------------------------------------------------
+Base risk                        75
+```
+
+Combination signals add further context when multiple suspicious behaviours appear together.
+
+For example:
+
+```text
+Credential access + data exfiltration
+→ additional +10 risk
+```
+
+The base score is capped before Immune Memory is applied so that previously learned evidence can still contribute to the final decision.
+
+### Decision thresholds
+
+The final score determines the policy decision:
+
+| Final score | Decision | Behaviour                                         |
+| ----------: | -------- | ------------------------------------------------- |
+|        0–49 | Allow    | The request can proceed to the next policy layer. |
+|       50–69 | Review   | The Run is held for human review.                 |
+|      70–100 | Deny     | The request is automatically blocked.             |
+
+For example:
+
+```text
+Final score: 35
+→ Allow
+
+Final score: 58
+→ Human review
+
+Final score: 85
+→ Automatically deny
+```
+
+The decision, score, threat categories, score breakdown, and reasons are returned together as an `ImmuneAssessment`.
+
+### Explainable assessment
+
+The Immune System does not return only a score. It also records how the score was calculated.
+
+An assessment contains:
+
+```text
+Final score
+Base score
+Immune Memory adjustment
+Decision
+Threat categories
+Reasons
+Score breakdown
+Matched memory IDs
+Whether a learned threat matched
+```
+
+For example:
+
+```text
+Decision: deny
+Final score: 85
+
+Reasons:
+- Prompt requests authentication credentials.
+- Prompt requests transmitting information externally.
+- Credential access combined with external transmission increases the likelihood of exfiltration.
+```
+
+This allows users and reviewers to understand why a request was blocked rather than receiving an unexplained rejection.
+
+### Immune Memory
+
+When a suspicious event is confirmed, the system stores a normalised fingerprint of the prompt in Immune Memory.
+
+For future prompts, the system:
+
+1. Normalises the new prompt.
+2. Compares it with active confirmed memory fingerprints.
+3. Calculates token similarity.
+4. Matches memories above the similarity threshold.
+5. Applies an additional risk adjustment based on similarity and confidence.
+
+The memory adjustment is calculated using:
+
+```text
+similarity × memory confidence × 25
+```
+
+For example:
+
+```text
+Base risk:              60
+Memory similarity:      80%
+Memory confidence:      90%
+Memory adjustment:      18
+--------------------------------
+Final risk:              78
+```
+
+Immune Memory allows the platform to reuse previously confirmed security knowledge while retaining an explanation of which memory records influenced the decision.
+
+### Learning from review
+
+When a human confirms a suspicious threat, the system can create or update an Immune Memory record.
+
+Memory records contain:
+
+```text
+Threat category
+Normalised fingerprint
+Confirmation count
+Dismissal count
+Detection count
+Confidence
+Automatic-block status
+Source event
+Creation time
+Last update time
+```
+
+Repeated confirmations increase confidence, while dismissed events reduce confidence. Similar threats are merged into an existing memory record when their fingerprints are sufficiently similar.
+
+This allows the system to become more cautious about recurring threat patterns without treating every prompt as identical.
+
+### Integration with Agent governance
+
+Agent Immune works alongside the Agent ability and approval middleware.
+
+```text
+User prompt
+    ↓
+Agent Immune threat assessment
+    ↓
+Ability and policy evaluation
+    ↓
+Allow, deny, or request approval
+    ↓
+Agent Runtime
+```
+
+The Immune System focuses on whether the request appears suspicious. The ability system focuses on whether the Agent is permitted to perform the required capability. Human approval provides an additional decision point for risky but potentially legitimate actions.
+
+A request may therefore be:
+
+```text
+Allowed by abilities but denied by Agent Immune
+Allowed by Agent Immune but denied by abilities
+Allowed by both systems
+Held for human review
+```
+
+### Security evidence
+
+Each Immune assessment produces an `ImmuneThreatEvent` containing:
+
+```text
+Agent ID
+Run ID
+Prompt excerpt
+Risk score
+Base score
+Memory adjustment
+Decision
+Threat categories
+Reasons
+Score breakdown
+Matched memory IDs
+Review status
+Creation time
+Review time
+```
+
+These events are displayed in the frontend so that users can inspect:
+
+* Why a request was considered suspicious.
+* Which threat categories were detected.
+* How the score was calculated.
+* Whether Immune Memory influenced the decision.
+* Whether the event was automatically blocked or reviewed by a human.
+
+This turns threat detection into explainable evidence rather than an opaque security mechanism.
+
 ## Secret Redaction 
 By Tham Jodena [@j0-oj](https://github.com/j0-oj)
 ### Problem
