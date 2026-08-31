@@ -514,11 +514,14 @@ The key design principles are:
 ## Group Task
 1. Click 'Group Task' on the sidebar
 <img width="960" height="500" alt="image" src="https://github.com/user-attachments/assets/7774db4f-2a3b-4c72-84b0-e3c476a0f6a6" />
-2. In the 'Group Task' dialog, write a task description and tag the group of available agents  with "@" (only agents with `canJoinSession` ability can participate)
+
+2. In the 'Group Task' dialog, write a task description and tag the group of available agents  with "@" (only agents with ```canJoinSession``` ability can participate)
 <img width="960" height="498" alt="Screenshot 2026-08-31 212552" src="https://github.com/user-attachments/assets/e9340e4b-640d-441c-a150-3301f2617341" />
+
 3. After starting group task, the group task will run and the dialog will log the group task activity. 
 Once the group task status becomes "completed", the group task is done. 
 <img width="960" height="500" alt="image" src="https://github.com/user-attachments/assets/5eb18c6b-3889-449c-8030-8e90746506bc" />
+
 > The individual activity of each agent can be viewed in their relative playground view.
 <img width="960" height="498" alt="image" src="https://github.com/user-attachments/assets/fb830918-7040-4465-9c7d-62d24af5839e" />
 
