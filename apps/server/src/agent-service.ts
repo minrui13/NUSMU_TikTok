@@ -15,7 +15,7 @@ import { isArkConfigured } from "./config.js";
 import { HttpError, RunCancelledError } from "./errors.js";
 import { JsonStore } from "./store.js";
 import { Ability } from "./types/abilities.js";
-import { AuditEntry } from "./types/audits.js";
+import { AuditEntry, AuditEvent, CoordinationEvent } from "./types/audits.js";
 import { getKnownSecrets, redactSecrets } from "./utils/redaction.js";
 import { WorkspaceManager } from "./workspace.js";
 
@@ -24,7 +24,6 @@ import type {
   Agent,
   AgentRun,
   AgentRunner,
-  CoordinationEvent,
   CreateAgentInput,
   Message,
   UpdateAgentInput,
@@ -248,6 +247,7 @@ export class AgentService {
       );
     }
     const timestamp = now();
+    const safePrompt = redactSecrets(prompt, getKnownSecrets());
     const runId = randomUUID();
     const run: AgentRun = {
       id: runId,
@@ -269,7 +269,7 @@ export class AgentService {
       agentId,
       runId,
       role: "user",
-      content: prompt,
+      content: safePrompt,
       createdAt: timestamp,
     };
 
@@ -427,10 +427,11 @@ export class AgentService {
   }
 
   // Get all Audit Events of the specified agent
-  getAuditEvents() {
+  getAllAuditEvents(): AuditEvent[] {
     return this.store
       .snapshot()
-      .auditEvents.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      .auditEvents.slice()
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
 
   getTrustSummary() {
@@ -664,11 +665,12 @@ export class AgentService {
   // if the policy allows, denies or pauses the action,
   // if a human approves or rejects a pending action
   private async recordAudit(entry: AuditEntry): Promise<void> {
+    const safeEntry = redactSecrets(entry, getKnownSecrets());
     await this.store.mutate((database) => {
       database.auditEvents.push({
         id: randomUUID(),
         createdAt: now(),
-        ...entry,
+        ...safeEntry,
       });
     });
   }

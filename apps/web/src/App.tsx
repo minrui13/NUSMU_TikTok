@@ -9,7 +9,7 @@ import { PendingApprovalMessage } from "./components/messages/PendingApprovalMes
 import { AllowedToast } from "./components/toasts/AllowedToast";
 import { DenyToast } from "./components/toasts/DenyToast";
 import { PendingApprovalToast } from "./components/toasts/PendingApprovalToast";
-import { GroupTaskPanel } from "./GroupTaskPanel";
+import { GroupTaskPanel } from "./components/GroupTaskPanel";
 import { defaultAbilities } from "./types/abilities";
 
 import type {
@@ -22,6 +22,8 @@ import type {
   AgentRole,
   View,
 } from "./types";
+import { AbilitiesView } from "./components/AbilitiesView";
+import { AuditView } from "./components/audit/AuditView";
 
 const starterPrompts = [
   "Create a small TypeScript CLI that prints a weather summary from sample JSON.",
@@ -444,7 +446,7 @@ export default function App() {
       setError(message);
 
       try {
-        const { events } = await api.auditEvents();
+        const { events } = await api.allAuditEvents();
 
         const latestDeniedEvent = events
           .filter(
@@ -481,7 +483,7 @@ export default function App() {
         const message =
           reason instanceof Error ? reason.message : String(reason);
         setError(message);
-        const { events } = await api.auditEvents();
+        const { events } = await api.allAuditEvents();
         const latestDeniedEvent = events
           .filter((event) => event.decision === "denied")
           .sort((left, right) =>
@@ -999,20 +1001,22 @@ export default function App() {
                   )}
                   {immuneDenied && (
                     <article className="run-blocked">
-                      <strong>🛡 Run blocked by Agent Immune</strong>
+                      <strong>{"🛡 Run blocked by Agent Immune"}</strong>
                       <span>
-                        Execution was stopped automatically because this Run
-                        exceeded the blocking threshold.
+                        {
+                          "Execution was stopped automatically because this Run\r"
+                        }
+                        {"exceeded the blocking threshold.\r"}
                       </span>
                     </article>
                   )}
 
                   {immuneNeedsReview && (
                     <article className="run-blocked">
-                      <strong>⚠ Run held for human review</strong>
+                      <strong>{"⚠ Run held for human review"}</strong>
                       <span>
-                        This Run is suspicious but not severe enough to
-                        auto-block. An operator decision is required.
+                        {"This Run is suspicious but not severe enough to\r"}
+                        {"auto-block. An operator decision is required.\r"}
                       </span>
                     </article>
                   )}
@@ -1026,7 +1030,7 @@ export default function App() {
                     <article className="immune-card">
                       <div className="immune-card-head">
                         <div>
-                          <span className="eyebrow">Agent Immune</span>
+                          <span className="eyebrow">{"Agent Immune"}</span>
                           <strong>
                             {immuneEvent.learnedMatch
                               ? "Immune Memory matched"
@@ -1034,7 +1038,8 @@ export default function App() {
                           </strong>
                         </div>
                         <span className="immune-score">
-                          {immuneEvent.score}/100
+                          {immuneEvent.score}
+                          {"/100\r"}
                         </span>
                         <div className="immune-score-explanation">
                           {/* <div className="immune-score-title">
@@ -1073,8 +1078,11 @@ export default function App() {
                           ))}
 
                           <div className="immune-score-row immune-score-total">
-                            <span>Final risk</span>
-                            <strong>{immuneEvent.score}/100</strong>
+                            <span>{"Final risk"}</span>
+                            <strong>
+                              {immuneEvent.score}
+                              {"/100"}
+                            </strong>
                           </div>
                         </div>
                       </div>
@@ -1092,10 +1100,10 @@ export default function App() {
                       </ul>
                       {immuneEvent.learnedMatch && (
                         <div className="immune-match-box">
-                          <strong>🛡 Immune Memory Match</strong>
+                          <strong>{"🛡 Immune Memory Match"}</strong>
                           <span>
-                            This Run matched a previously confirmed threat
-                            pattern.
+                            {"This Run matched a previously confirmed threat\r"}
+                            {"pattern.\r"}
                           </span>
                         </div>
                       )}
@@ -1127,7 +1135,9 @@ export default function App() {
                       {/* DENY: already blocked automatically */}
                       {immuneEvent.decision === "deny" && (
                         <div className="immune-reviewed">
-                          🛡 Automatically blocked — no human approval required
+                          {
+                            "🛡 Automatically blocked — no human approval required\r"
+                          }
                         </div>
                       )}
 
@@ -1198,7 +1208,7 @@ export default function App() {
               </section>
             </>
           ) : view === "abilities" ? (
-            <AbilitiesTable
+            <AbilitiesView
               onSelectAgent={(agentId) => {
                 navigateToView(agentId, "playground");
               }}
@@ -1207,8 +1217,11 @@ export default function App() {
               onUpdate={updateAbilities}
               saving={savingAbilities}
             />
-          ) : view === "admin" || view === "audit" ? (
+          ) : view === "admin" ? (
             <AdminApprovalCenter agents={agents} />
+        
+          ) : view === "audit" ? (
+            <AuditView agents={agents} />
           ) : (
             <div className="no-agent">
               <div className="no-agent-art">{"A"}</div>

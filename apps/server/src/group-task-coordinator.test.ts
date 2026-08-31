@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { AgentService } from "./agent-service.js";
 import { loadConfig } from "./config.js";
 import { GroupTaskCoordinator } from "./group-task-coordinator.js";
+import { GroupTaskService } from "./group-task-service.js";
 import { parseMentionedAgents } from "./mention-parser.js";
 import { JsonStore } from "./store.js";
 import { WorkspaceManager } from "./workspace.js";
@@ -85,6 +86,7 @@ describe("group chat @mention task", () => {
         { id: a.id, name: a.name },
         { id: b.id, name: b.name },
       ],
+      "test-user",
     );
     const result = await coordinator.run();
 
@@ -110,5 +112,56 @@ describe("group chat @mention task", () => {
 
     expect(result.status).toBe("failed");
     expect(result.error).toContain("repeated an earlier turn");
+  });
+});
+
+describe("group task ability enforcement", () => {
+  it("does not start the task, and spends zero tokens, when a mentioned Agent lacks canJoinSession", async () => {
+    let runCallCount = 0;
+    const countingRunner: AgentRunner = {
+      run: async () => {
+        runCallCount += 1; // should never increment in this test
+        return { output: "9", threadId: "t", usage: { inputTokens: 100, outputTokens: 10 } };
+      },
+      cancel: async () => false,
+      isAvailable: async () => true,
+    };
+    const service = await makeService(countingRunner);
+
+    // deliberately NOT granting canJoinSession
+    const blocked = await service.createAgent({ name: "Blocked" });
+
+    const groupTaskService = new GroupTaskService(service);
+
+    expect(() => groupTaskService.createTask(`Count down @Blocked`)).toThrow(
+      /cannot join this group task/,
+    );
+    expect(runCallCount).toBe(0); // confirms no Agent run — no tokens spent
+  });
+
+  it("allows the task to start when every mentioned Agent has canJoinSession granted", async () => {
+    const runner = new FakeCountdownRunner();
+    const service = await makeService(runner);
+
+    const allowed = await service.createAgent({
+      name: "Allowed",
+      abilities: { canJoinSession: true },
+    });
+
+    const groupTaskService = new GroupTaskService(service);
+    const task = groupTaskService.createTask(`Count down @Allowed`, "test-user");
+
+    expect(task.status).toBe("running");
+    expect(task.participants.map((p) => p.name)).toEqual(["Allowed"]);
+
+    // Wait for the background fire-and-forget run() to actually finish,
+    // so afterEach's directory cleanup doesn't race against in-flight writes.
+    const deadline = Date.now() + 5_000;
+    let finalState = groupTaskService.getTask(task.id);
+    while (finalState.status === "running" && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 25));
+      finalState = groupTaskService.getTask(task.id);
+    }
+    expect(finalState.status).toBe("completed");
   });
 });

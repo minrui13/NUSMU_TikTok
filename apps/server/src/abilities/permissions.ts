@@ -14,22 +14,29 @@ export const defaultAgentAbilities: Record<Ability, boolean> = {
 // we dont't know for certain what Codex will do from natural language alone.
 // canReadWorkspace is always included because agents always need to read
 // access to inspect files before understanding what to do
-const patterns: Array<{ ability: Ability; pattern: RegExp }> = [
+const patterns: Array<{
+  ability: Ability;
+  pattern: RegExp;
+}> = [
   {
     ability: "canRunCommand",
-    pattern: /\b(run|execute|install|npm|test|build|compile)\b/i,
+    pattern:
+      /\b(run|execute|shell|command|npm|pnpm|yarn|bun|test|build|compile|install|start)\b/i,
   },
   {
     ability: "canWriteWorkspace",
-    pattern: /\b(create|write|add|generate|edit|delete|modify)\b/i,
+    pattern:
+      /\b(create|write|add|generate|edit|update|delete|remove|modify|save|overwrite)\b/i,
   },
   {
     ability: "canAccessSecrets",
-    pattern: /\b(secret|credential|api[\s-]?key|token|\.env)\b/i,
+    pattern:
+      /(\.env\b|secret|credential|password|api[\s_-]?key|access[\s_-]?token|bearer\s+[a-z0-9._-]+)/i,
   },
   {
     ability: "canUseNetwork",
-    pattern: /\b(fetch|download|curl|http|install from|clone)\b/i,
+    pattern:
+      /\b(fetch|download|upload|curl|wget|clone|push|pull|request|http|https|api\.)\b|https?:\/\/\S+/i,
   },
 ];
 
@@ -45,8 +52,13 @@ export const abilityRisk: Record<Ability, Risk> = {
 
 // Scans the prompt and check against the pattertn to see which ability is required
 export function classifyAction(prompt: string): Ability[] {
-  const matched = patterns
-    .filter(({ pattern }) => pattern.test(prompt))
+  const normalisedPrompt = prompt.trim().replace(/\s+/g, " ");
+
+  const matchedAbilities = patterns
+    .filter(({ pattern }) => pattern.test(normalisedPrompt))
     .map(({ ability }) => ability);
-  return Array.from(new Set([...matched, "canReadWorkspace"]));
+
+  matchedAbilities.push("canReadWorkspace");
+
+  return Array.from(new Set(matchedAbilities));
 }

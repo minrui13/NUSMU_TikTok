@@ -8,10 +8,11 @@
     linear-gradient(rgba(255, 255, 255, 0.52), rgba(255, 255, 255, 0.52)),
     radial-gradient(circle at 20% 0, #f1effb, transparent 38%);
 }
+
 .abilities-table-head {
   padding: 17px 22px;
   border-bottom: 1px solid #e5e3dc;
-  background: #fbfaf7f0;
+  background: #f3f3f3f0;
 }
 
 .abilities-table-head-row {
@@ -21,7 +22,7 @@
 
 .abilities-table-head .abilities-table-cell {
   font-weight: 600;
-  font-size: 1rem;
+  font-size: 15px;
 }
 
 .abilities-table-head .abilities-table-cell div {

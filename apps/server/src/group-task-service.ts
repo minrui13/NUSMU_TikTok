@@ -4,6 +4,7 @@ import {
   type GroupTaskState,
 } from "./group-task-coordinator.js";
 import { parseMentionedAgents } from "./mention-parser.js";
+import { getKnownSecrets, redactSecrets } from "./utils/redaction.js";
 
 import type { AgentService } from "./agent-service.js";
 
@@ -13,10 +14,11 @@ export class GroupTaskService {
   constructor(private readonly agentService: AgentService) {}
 
   createTask(description: string, userId: string): GroupTaskState {
+    const safeDescription = redactSecrets(description, getKnownSecrets());
     const knownAgents = this.agentService
       .listAgents()
       .map((agent) => ({ id: agent.id, name: agent.name }));
-    const participants = parseMentionedAgents(description, knownAgents);
+    const participants = parseMentionedAgents(safeDescription, knownAgents);
 
     if (participants.length < 1) {
       throw new HttpError(
@@ -25,9 +27,19 @@ export class GroupTaskService {
       );
     }
 
+    for (const participant of participants) {
+      const { allowed, reason } = this.agentService.checkCanJoinSession(participant.id);
+      if (!allowed) {
+        throw new HttpError(
+          403,
+          `${participant.name} cannot join this group task: ${reason}`,
+        );
+      }
+    }
+
     const coordinator = new GroupTaskCoordinator(
       this.agentService,
-      description,
+      safeDescription,
       participants,
       userId,
     );

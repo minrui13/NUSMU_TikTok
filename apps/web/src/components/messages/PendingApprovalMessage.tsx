@@ -13,9 +13,12 @@ export function PendingApprovalMessage({
 }) {
   return (
     <article className="message message-assistant pending-approval-message">
-      <div className="message-meta">
+      <div className="message-meta pending">
         <strong className="message-label pending">{"Approval needed"}</strong>
         <span>{formatTime(run.createdAt)}</span>
+      </div>
+      <div className="pending-approval-note">
+        <span>Prompt has {run.risk} risk:</span>
       </div>
       <div className="message-body">
         <p>

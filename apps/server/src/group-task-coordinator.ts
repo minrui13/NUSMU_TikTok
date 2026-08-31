@@ -60,6 +60,16 @@ export class GroupTaskCoordinator {
   }
 
   async run(turnTimeoutMs = 20_000): Promise<GroupTaskState> {
+    await this.service.recordCoordinationEvent({
+      agentId: this.participants[0]!.id,
+      sessionId: this.task.sessionId,
+      action: "group_session_started",
+      risk: "medium",
+      decision: "allowed",
+      reason: "Multi-Agent group session started",
+      prompt: this.task.description,
+    });
+
     let turnIndex = 0;
 
     while (
@@ -69,6 +79,18 @@ export class GroupTaskCoordinator {
       const participant =
         this.participants[turnIndex % this.participants.length]!;
       const prompt = this.buildPrompt(participant);
+
+      await this.service.recordCoordinationEvent({
+        agentId: participant.id,
+        sessionId: this.task.sessionId,
+        action: "agent_turn_started",
+        risk: "medium",
+        decision: "allowed",
+        reason: `${participant.name} was selected for turn ${
+          this.task.turns.length + 1
+        }`,
+        prompt,
+      });
 
       const { run } = await this.service.sendMessage(
         participant.id,
@@ -109,6 +131,16 @@ export class GroupTaskCoordinator {
         agentName: participant.name,
         content,
         createdAt: new Date().toISOString(),
+      });
+
+      await this.service.recordCoordinationEvent({
+        agentId: participant.id,
+        sessionId: this.task.sessionId,
+        action: "agent_turn_completed",
+        risk: "medium",
+        decision: "allowed",
+        reason: `${participant.name} completed its turn`,
+        prompt: content,
       });
 
       if (content.includes(DONE_MARKER)) {
@@ -152,8 +184,9 @@ export class GroupTaskCoordinator {
     const deadline = Date.now() + timeoutMs;
     while (Date.now() < deadline) {
       const run = this.service.getRun(runId);
-      if (["completed", "failed", "cancelled"].includes(run.status))
-        {return true;}
+      if (["completed", "failed", "cancelled"].includes(run.status)) {
+        return true;
+      }
       await new Promise((resolve) => setTimeout(resolve, 50));
     }
     return false;
