@@ -42,43 +42,33 @@ So we ask ourselves, as users, what do we need to know before letting an Agent a
 
 This is where we assemble our Avengers.
 
-## Our Solution
-### User Flow
-1. Creating an Agent
-A user creates an Agent through the existing Agent Launchpad interface. The Agent receives a default least-privilege ability profile.
-```
-Read workspace files Enabled 
-Write workspace files Enabled 
-Run shell commands Disabled
-Access secrets Disabled 
-Use network Disabled 
-Join shared sessions Disabled
-```
-> [!NOTE]
-The user can manage the Agent’s predefined abilities through the Abilities view on the sidebar. The interface displays the ability description and risk level so that the user understands the consequences of enabling it.
+## Our Solution: Assemble the Avengers
+## 1. Create an Agent
+The user creates an Agent through the **Agent Launchpad** and gives it a name, description, and instructions.  
+When the Agent is created, it receives a least‑privilege ability profile:
 
-### Sending a task 
-The user sends a task through the Playground.
-Before the task reaches the Agent Runtime:
-```
-For example:
+- **Read workspace files** → Enabled  
+- **Write workspace files** → Enabled  
+- **Run shell commands** → Disabled  
+- **Access secrets** → Disabled  
+- **Use network** → Disabled  
+- **Join shared sessions** → Disabled  
 
-Run the project tests and fix any failures.
+[!Note]
+The user can manage these abilities through the **Abilities view**.  
+Each ability includes a description and risk level so that the user can understand what the Agent is allowed to do.
 
-Before the task reaches the Agent Runtime, the middleware evaluates it:
+**Examples:**
+- A Documentation Agent may read and edit Markdown files but cannot run shell commands.  
+- A Testing Agent may run approved test commands but cannot access secrets.  
+- A Research Agent may use the network but cannot modify the workspace.  
 
-User prompt
-    ↓
-Action classification
-    ↓
-Agent Immune threat detection
-    ↓
-Risk scoring
-    ↓
-Ability and policy check
-```
-The system identifies capabilities that may be required, such as reading files, writing files, running commands, accessing secrets, or using the network.
-### Middleware 
+> The Agent’s abilities are stored on the backend.  
+> The frontend only provides the interface for managing them; it is not responsible for enforcing them.
+---
+## 2. Send the Agent a Task
 
+The user selects an Agent in the **Playground** and sends a prompt.
 
+**Example:**
 
