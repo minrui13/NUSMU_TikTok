@@ -46,7 +46,10 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
     message?: string;
   };
   if (!response.ok) {
-    throw new ApiError(data.message ?? data.error ?? "Request failed", response.status);
+    throw new ApiError(
+      data.message ?? data.error ?? "Request failed",
+      response.status,
+    );
   }
   return data;
 }
@@ -118,7 +121,7 @@ export const api = {
     }),
   pendingApprovals: () =>
     request<{ runs: AgentRun[] }>("/api/runs/pendingApprovals"),
-  allAuditEvents: () => request<{ events: AuditEvent[] }>("/api/audit-events"),
+  allAuditEvents: () => request<{ events: AuditEvent[] }>("/api/auditEvents"),
   abilities: () =>
     request<{ abilities: Record<Ability, boolean> }>("/api/abilities"),
   updateAbilities: (id: string, body: AbilityBody) =>

@@ -22,9 +22,8 @@ export function evaluateAction(
 }
 
 // This is a risk-based policy checker
-// If permission is granted, agent is allowed
-// If there is low/medium risk and missing grant, agent is denied
-// If there is high/critical risk and missing grant, requires human approval
+// Granted low/medium-risk abilities are allowed; granted high/critical-risk
+// abilities require approval. Any missing ability is denied.
 export function checkAbility(
   ability: Ability,
   grantedAbilities: Ability[],

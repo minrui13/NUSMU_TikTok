@@ -217,7 +217,7 @@ export async function createApp(
   // Each event records who performed the action, which Agent was affected,
   // whether the policy allowed or denied it, and the reason for the decision.
   // app.ts
-  app.get("/api/audit-events", async () => ({
+  app.get("/api/auditEvents", async () => ({
     events: service.getAllAuditEvents(),
   }));
 
