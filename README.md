@@ -1,5 +1,9 @@
 # NUSMU 
-Members: Goh Min Rui (@minrui13), Su Myat Myat Htay (@sumyatmyathtay), Marcus Yeong Mun Hong (@mxrcxsz12) , Tham Jodena (@j0-oj)
+Members: 
+* Goh Min Rui (@minrui13) 
+* Su Myat Myat Htay (@sumyatmyathtay) 
+* Marcus Yeong Mun Hong (@mxrcxsz12) 
+* Tham Jodena (@j0-oj)
 # SetUp Instructions
 1. Clone respository
 `git clone https://github.com/minrui13/NUSMU_TikTok.git`
@@ -8,7 +12,7 @@ Members: Goh Min Rui (@minrui13), Su Myat Myat Htay (@sumyatmyathtay), Marcus Ye
 `npm install`
 3. Configure env
 `cp .env.example .env`
-Add API keys & App token
+* Add API keys & App token
 ```
 APP_AUTH_TOKEN=super-secret-local-dev-token-12345
 
