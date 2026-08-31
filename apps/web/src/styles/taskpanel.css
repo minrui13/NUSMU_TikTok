@@ -1,0 +1,40 @@
+.group-task-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.group-task-panel-button {
+  margin-top: 10px;
+}
+
+.group-task-panel-agents.hint {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 8px 0px;
+}
+.group-task-panel-agents-label {
+  margin: 0px;
+}
+
+.group-task-panel-agents-names {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0px;
+}
+
+.group-task-panel-error {
+  margin: 15px 0px 5px;
+}
+
+.group-task-turn-details {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.modal-body .status {
+  margin-bottom: 10px;
+}

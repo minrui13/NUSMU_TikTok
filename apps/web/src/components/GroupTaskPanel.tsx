@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-
-import { ApiError, api } from "./api";
-
-import type { Agent, GroupTaskState } from "./types";
+import { Agent, GroupTaskState } from "../types";
+import { api, ApiError } from "../api";
+import CloseIcon from "@mui/icons-material/Close";
+import "../styles/taskpanel.css";
+import Loading from "./Loading";
 
 function formatTime(value: string): string {
   return new Intl.DateTimeFormat(undefined, {
@@ -71,10 +72,20 @@ export function GroupTaskPanel({
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true">
       <div className="modal">
-        <div className="modal-header">
-          <h2>{"Group Task"}</h2>
-          <button className="icon-button" onClick={onClose} aria-label="Close">
-            {"✕\r"}
+        <div className="modal-header group-task-panel">
+          <h2 className="group-task-panel-title">{"Group Task"}</h2>
+          <button
+            className="button icon-button"
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+          >
+            <CloseIcon
+              sx={{
+                color: "rgba(0, 0, 0, 0.2)",
+                "&:hover": { color: "rgba(0, 0, 0, 0.5)" },
+              }}
+            />
           </button>
         </div>
 
@@ -89,20 +100,25 @@ export function GroupTaskPanel({
                 placeholder="Count off from 10, subtract 1 each turn, no repeats, until you reach 1 @AgentA @AgentB"
               />
             </label>
-            <div className="hint">
-              {"Available Agents:"}{" "}
-              {agents.map((a) => (
-                <code
-                  key={a.id}
-                  className={
-                    mentionedAgents.some((m) => m.id === a.id)
-                      ? "mention-hit"
-                      : ""
-                  }
-                >
-                  {"@"}{a.name}
-                </code>
-              ))}
+            <div className="group-task-panel-agents hint">
+              <p className="group-task-panel-agents-label">
+                Available Agents:{" "}
+              </p>
+              <div className="group-task-panel-agents-names">
+                {agents.map((a) => (
+                  <code
+                    key={a.id}
+                    className={
+                      mentionedAgents.some((m) => m.id === a.id)
+                        ? "mention-hit"
+                        : ""
+                    }
+                  >
+                    {"@"}
+                    {a.name}
+                  </code>
+                ))}
+              </div>
             </div>
             {mentionedAgents.length > 0 && (
               <div className="hint">
@@ -112,7 +128,8 @@ export function GroupTaskPanel({
             )}
             {error && <div className="error-banner">{error}</div>}
             <button
-              className="primary"
+              type="button"
+              className="button button-primary group-task-panel-button "
               onClick={start}
               disabled={busy || !description.trim()}
             >
@@ -136,19 +153,27 @@ export function GroupTaskPanel({
               <span className="status-dot" />
               {task.status}
             </div>
-            {task.error && <div className="error-banner">{task.error}</div>}
+            {task.error && (
+              <div className="group-task-panel-error error-banner">
+                {task.error}
+              </div>
+            )}
             <div className="group-task-feed">
               {task.turns.map((turn) => (
                 <div key={turn.id} className="group-task-turn">
-                  <strong>{turn.agentName}</strong>
-                  <span className="timestamp">
-                    {formatTime(turn.createdAt)}
-                  </span>
+                  <div className="group-task-turn-details">
+                    <strong>{turn.agentName}</strong>
+                    <span className="timestamp">
+                      {formatTime(turn.createdAt)}
+                    </span>
+                  </div>
                   <div>{turn.content}</div>
                 </div>
               ))}
               {task.turns.length === 0 && task.status === "running" && (
-                <Spinner />
+                <div style={{ padding: 15 }}>
+                  <Loading />
+                </div>
               )}
             </div>
           </div>
@@ -156,8 +181,4 @@ export function GroupTaskPanel({
       </div>
     </div>
   );
-}
-
-function Spinner() {
-  return <span className="spinner" aria-label="Loading" />;
 }
