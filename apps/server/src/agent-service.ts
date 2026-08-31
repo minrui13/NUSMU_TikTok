@@ -10,6 +10,7 @@ import {
   overallDecision,
 } from "./abilities/policy-checker.js";
 import { AgentImmuneEngine } from "./agent-immune.js";
+import { calculateAdaptiveTrust } from "./role-trust.js";
 import { isArkConfigured } from "./config.js";
 import { HttpError, RunCancelledError } from "./errors.js";
 import { JsonStore } from "./store.js";
@@ -101,6 +102,7 @@ export class AgentService {
       codexThreadId: null,
       lastError: null,
       abilities: { ...defaultAgentAbilities, ...input.abilities },
+      role: input.role ?? "frontend_developer",
       createdAt: timestamp,
       updatedAt: timestamp,
     };
@@ -131,6 +133,9 @@ export class AgentService {
       }
       if (input.instructions !== undefined) {
         agent.instructions = input.instructions.trim();
+      }
+      if (input.role !== undefined) {
+        agent.role = input.role;
       }
       agent.lastError = null;
       agent.updatedAt = now();
@@ -282,10 +287,43 @@ export class AgentService {
 
     const requiredAbilities = classifyAction(prompt);
 
-    const results = evaluateAction(
+    const rawResults = evaluateAction(
       requiredAbilities,
       grantedList(agentAtStart.abilities),
     );
+
+    const snapshotForTrust = this.store.snapshot();
+    const results = rawResults.map((result) => {
+      if (result.decision !== "pending_approval") return result;
+
+      const trust = calculateAdaptiveTrust({
+        agent: agentAtStart,
+        ability: result.ability,
+        agents: snapshotForTrust.agents,
+        auditEvents: snapshotForTrust.auditEvents,
+      });
+
+      if (trust.adjustment <= -20) {
+        return {
+          ...result,
+          decision: "allowed" as const,
+          reason: `Role-Aware Adaptive Trust auto-approved ${result.ability}: ${trust.reasons.join("; ")}`,
+        };
+      }
+
+      if (trust.adjustment >= 45) {
+        return {
+          ...result,
+          decision: "denied" as const,
+          reason: `Role-Aware Adaptive Trust auto-blocked ${result.ability}: ${trust.reasons.join("; ")}`,
+        };
+      }
+
+      return {
+        ...result,
+        reason: `${result.reason}. Adaptive trust: ${trust.reasons.join("; ") || "no prior evidence"}`,
+      };
+    });
 
     for (const result of results) {
       await this.recordAudit({
@@ -419,8 +457,21 @@ export class AgentService {
         throw new RunCancelledError();
       }
 
-      const memories = this.store.snapshot().immuneMemories;
-      const assessment = this.immune.assess(run.prompt, memories);
+      const immuneSnapshot = this.store.snapshot();
+      const memories = immuneSnapshot.immuneMemories;
+      const requiredAbilities = classifyAction(run.prompt);
+      const secretTrust = requiredAbilities.includes("canAccessSecrets")
+        ? calculateAdaptiveTrust({
+            agent: agentAtStart,
+            ability: "canAccessSecrets",
+            agents: immuneSnapshot.agents,
+            auditEvents: immuneSnapshot.auditEvents,
+          })
+        : null;
+      const assessment = this.immune.assess(run.prompt, memories, {
+        roleTrustAdjustment: secretTrust?.adjustment ?? 0,
+        roleTrustReasons: secretTrust?.reasons ?? [],
+      });
       if (assessment.decision !== "allow") {
         const event = this.immune.createThreatEvent({
           agentId: agentAtStart.id,

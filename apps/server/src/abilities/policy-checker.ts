@@ -49,13 +49,20 @@ export function checkAbility(
       reason: `${ability} (${risk} risk) requires human approval`,
     };
   }
+  if (!granted && (risk === "high" || risk === "critical")) {
+    return {
+      ability,
+      risk,
+      decision: "pending_approval",
+      reason: `${ability} is not granted and requires one-time human approval`,
+    };
+  }
+
   return {
     ability,
     risk,
     decision: "denied",
-    reason: granted
-      ? `${ability} (${risk} risk) is not permitted` // Should not happen given the logic above, but just in case
-      : `${ability} is not granted to this Agent`,
+    reason: `${ability} is not granted to this Agent`,
   };
 }
 

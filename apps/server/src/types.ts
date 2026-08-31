@@ -13,6 +13,13 @@ export type RunStatus =
 
 export type AgentStatus = "ready" | "busy" | "stopped" | "error";
 
+export type AgentRole =
+  | "frontend_developer"
+  | "backend_developer"
+  | "fullstack_developer"
+  | "marketing"
+  | "admin";
+
 export type MessageRole = "user" | "assistant" | "system";
 
 export interface Agent {
@@ -25,6 +32,7 @@ export interface Agent {
   codexThreadId: string | null;
   lastError: string | null;
   abilities: Record<Ability, boolean>;
+  role: AgentRole;
   createdAt: string;
   updatedAt: string;
 }
@@ -126,12 +134,14 @@ export interface CreateAgentInput {
   description?: string | undefined;
   instructions?: string | undefined;
   abilities?: Partial<Record<Ability, boolean>> | undefined;
+  role?: AgentRole | undefined;
 }
 
 export interface UpdateAgentInput {
   name?: string | undefined;
   description?: string | undefined;
   instructions?: string | undefined;
+  role?: AgentRole | undefined;
 }
 
 export interface RunnerResult {

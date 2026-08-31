@@ -3,6 +3,7 @@ import { AuditEvent } from "./types/audits";
 
 import type {
   Agent,
+  AgentRole,
   AgentRun,
   GroupTaskState,
   ImmuneMemory,
@@ -53,6 +54,7 @@ export const api = {
     name: string;
     description: string;
     instructions: string;
+    role: AgentRole;
   }) =>
     request<{ agent: Agent }>("/api/agents", {
       method: "POST",
@@ -60,7 +62,7 @@ export const api = {
     }),
   updateAgent: (
     id: string,
-    body: { name: string; description: string; instructions: string },
+    body: { name: string; description: string; instructions: string; role: AgentRole },
   ) =>
     request<{ agent: Agent }>("/api/agents/" + id, {
       method: "PATCH",

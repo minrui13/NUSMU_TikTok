@@ -18,6 +18,7 @@ import type {
   SystemInfo,
   ToastItem,
   ImmuneThreatEvent,
+  AgentRole,
   View,
 } from "./types";
 
@@ -27,9 +28,18 @@ const starterPrompts = [
   "Build a responsive single-page todo app with tests.",
 ];
 
+const ROLE_OPTIONS: Array<{ value: AgentRole; label: string }> = [
+  { value: "frontend_developer", label: "Frontend Developer" },
+  { value: "backend_developer", label: "Backend Developer" },
+  { value: "fullstack_developer", label: "Fullstack Developer" },
+  { value: "marketing", label: "Marketing" },
+  { value: "admin", label: "Administrator" },
+];
+
 const emptyForm = {
   name: "",
   description: "",
+  role: "frontend_developer" as AgentRole,
   instructions:
     "Help me build and test software in this workspace. Keep changes small and explain the result.",
 };
@@ -280,6 +290,7 @@ export default function App() {
       setForm({
         name: selected.name,
         description: selected.description,
+        role: selected.role ?? "frontend_developer",
         instructions: selected.instructions,
       });
     }
@@ -769,6 +780,8 @@ export default function App() {
                   <p>
                     {selected.description ||
                       "A Codex coding Agent in an isolated workspace."}
+                    {" · "}
+                    {ROLE_OPTIONS.find((role) => role.value === selected.role)?.label ?? selected.role}
                   </p>
                 </div>
                 <div className="header-actions">
@@ -831,6 +844,21 @@ export default function App() {
                         }
                         maxLength={500}
                       />
+                    </label>
+                    <label>
+                      Role
+                      <select
+                        value={form.role}
+                        onChange={(event) =>
+                          setForm({ ...form, role: event.target.value as AgentRole })
+                        }
+                      >
+                        {ROLE_OPTIONS.map((role) => (
+                          <option key={role.value} value={role.value}>
+                            {role.label}
+                          </option>
+                        ))}
+                      </select>
                     </label>
                   </div>
                   <label>
@@ -1030,7 +1058,7 @@ export default function App() {
                               key={signal.label}
                             >
                               <span>{signal.label}</span>
-                              <strong>+{signal.score}</strong>
+                              <strong>{signal.score > 0 ? `+${signal.score}` : signal.score}</strong>
                             </div>
                           ))}
 
@@ -1235,6 +1263,21 @@ export default function App() {
                   }
                   maxLength={500}
                 />
+              </label>
+              <label>
+                Role
+                <select
+                  value={form.role}
+                  onChange={(event) =>
+                    setForm({ ...form, role: event.target.value as AgentRole })
+                  }
+                >
+                  {ROLE_OPTIONS.map((role) => (
+                    <option key={role.value} value={role.value}>
+                      {role.label}
+                    </option>
+                  ))}
+                </select>
               </label>
               <label>
                 {"Instructions\r"}
