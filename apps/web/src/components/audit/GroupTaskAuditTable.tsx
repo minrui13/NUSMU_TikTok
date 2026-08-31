@@ -15,6 +15,8 @@ import { TablePagination } from "@mui/material";
 import { makeStyles } from "@mui/styles";
 import "../../styles/audit.css";
 import { formatTime } from "../../App";
+import { useAuditFilters } from "../../hooks/useAuditFilters";
+import { AuditFilterBar } from "./AuditFilterBar";
 
 const useStyles = makeStyles(() => ({
   container: {
@@ -69,7 +71,10 @@ export function GroupTaskAuditTable({ agents }: Props) {
   const agentName = (agentId: string) =>
     agents.find((a) => a.id === agentId)?.name ?? agentId.slice(0, 8);
 
-  const sessions = Array.from(new Set(events.map((e) => e.sessionId)));
+  const { filters, setFilters, filtered, resetFilters } = useAuditFilters(
+    events.filter((e) => e.sessionId !== null), // your existing session filter, applied first
+  );
+  const sessions = Array.from(new Set(filtered.map((e) => e.sessionId)));
   const {
     paged: pagedSessions,
     page,
@@ -80,6 +85,12 @@ export function GroupTaskAuditTable({ agents }: Props) {
 
   return (
     <div className="group-task-audit-log">
+      <AuditFilterBar
+        filters={filters}
+        setFilters={setFilters}
+        onReset={resetFilters}
+        agents={agents}
+      />{" "}
       {sessions.length === 0 && (
         <p>No group tasks coordination sessions yet.</p>
       )}
@@ -139,7 +150,7 @@ export function GroupTaskAuditTable({ agents }: Props) {
       ))}{" "}
       <TablePagination
         component="div"
-        count={sessions.length}
+        count={filtered.length}
         page={page}
         onPageChange={handleChangePage}
         rowsPerPage={rowsPerPage}

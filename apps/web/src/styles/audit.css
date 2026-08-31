@@ -1,3 +1,15 @@
+.audit-filter-bar {
+  margin-bottom: 15px;
+  margin-top: 15px;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.audit-filter-controls {
+  background-color: #f8f7f3;
+}
+
 .audit-view-tabs {
   margin-bottom: 10px;
 }

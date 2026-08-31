@@ -1,4 +1,5 @@
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+import type { ChangeEvent } from "react";
 
 export function usePagination<T>(items: T[], initialRowsPerPage = 10) {
   const [page, setPage] = useState(0);
@@ -9,12 +10,17 @@ export function usePagination<T>(items: T[], initialRowsPerPage = 10) {
     [items, page, rowsPerPage],
   );
 
-  const handleChangePage = (_: unknown, newPage: number) => setPage(newPage);
-  const handleChangeRowsPerPage = (
-    event: React.ChangeEvent<HTMLInputElement>,
-  ) => {
+  useEffect(() => {
+    setPage(0);
+  }, [items.length]);
+
+  const handleChangePage = (_event: unknown, newPage: number) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (event: ChangeEvent<HTMLInputElement>) => {
     setRowsPerPage(parseInt(event.target.value, 10));
-    setPage(0); // reset to first page when page size changes
+    setPage(0);
   };
 
   return {
