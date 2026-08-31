@@ -11,6 +11,8 @@ import { HttpError } from "./errors.js";
 import { Ability } from "./types/abilities.js";
 import { getKnownSecrets, redactSecrets } from "./utils/redaction.js";
 
+import { DashboardService } from "./dashboard-service.js";
+
 import type { AgentService } from "./agent-service.js";
 import type { AppConfig } from "./config.js";
 import type { GroupTaskService } from "./group-task-service.js"; // add import
@@ -61,6 +63,19 @@ export async function createApp(
   config: AppConfig,
   service: AgentService,
   groupTaskService: GroupTaskService,
+  // Optional so existing test call sites with 3 args keep compiling; falls
+  // back to an empty in-memory store when omitted.
+  dashboardService: DashboardService = new DashboardService({
+    snapshot: () => ({
+      version: 1,
+      agents: [],
+      messages: [],
+      runs: [],
+      immuneThreatEvents: [],
+      immuneMemories: [],
+      auditEvents: [],
+    }),
+  }),
 ): Promise<FastifyInstance> {
   const app = Fastify({
     logger: {
@@ -234,6 +249,7 @@ export async function createApp(
     return { runs: service.getPendingApprovals() };
   });
 
+  app.get("/api/dashboard", async () => dashboardService.getDashboard());
   app.get("/api/admin/trust-summary", async () => {
     return { items: service.getTrustSummary() };
   });

@@ -1,6 +1,7 @@
 import { Ability, AbilityBody } from "./types/abilities";
 import { AuditEvent } from "./types/audits";
 
+import type { DashboardSnapshot } from "./components/dashboard/types";
 import type {
   Agent,
   AgentRole,
@@ -144,4 +145,5 @@ export const api = {
     }),
   groupTask: (id: string) =>
     request<{ task: GroupTaskState }>("/api/group-tasks/" + id),
+  dashboard: () => request<DashboardSnapshot>("/api/dashboard"),
 };
