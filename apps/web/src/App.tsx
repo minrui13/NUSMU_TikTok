@@ -708,6 +708,14 @@ export default function App() {
               {"Audit Log\r"}
             </span>
             <span
+              className={`${view === "admin" ? "view-clicked" : ""}`}
+              onClick={() => {
+                navigateToView(null, "admin");
+              }}
+            >
+              {"Admin Center"}
+            </span>
+            <span
               className={`${view === "dashboard" ? "view-clicked" : ""}`}
               onClick={() => {
                 navigateToView(null, "dashboard");

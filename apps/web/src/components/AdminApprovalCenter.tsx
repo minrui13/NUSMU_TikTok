@@ -41,13 +41,13 @@ export function AdminApprovalCenter({ agents }: { agents: Agent[] }) {
 
   const refresh = useCallback(async () => {
     try {
-      const [pending, audits, trustResult] = await Promise.all([
+      const [pending,  trustResult] = await Promise.all([
         api.pendingApprovals(),
-        api.auditEvents(),
+        // api.auditEvents(),
         api.trustSummary(),
       ]);
       setPendingRuns(pending.runs);
-      setAuditEvents(audits.events);
+      // setAuditEvents(audits.events);
       setTrust(trustResult.items);
       setError(null);
     } catch (reason) {

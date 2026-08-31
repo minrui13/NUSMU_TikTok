@@ -21,7 +21,13 @@ const agentIdParams = z.object({ id: z.string().uuid() });
 const runIdParams = z.object({ id: z.string().uuid() });
 const immuneEventIdParams = z.object({ id: z.string().uuid() });
 const immuneReviewBody = z.object({ action: z.enum(["confirm", "dismiss"]) });
-const agentRole = z.enum(["frontend_developer", "backend_developer", "fullstack_developer", "marketing", "admin"]);
+const agentRole = z.enum([
+  "frontend_developer",
+  "backend_developer",
+  "fullstack_developer",
+  "marketing",
+  "admin",
+]);
 const createAgentBody = z.object({
   name: z.string().trim().min(1).max(80),
   description: z.string().max(500).optional(),
@@ -178,6 +184,10 @@ export async function createApp(
     return { runs: service.getAllRuns() };
   });
 
+  app.get("/api/runs/pendingApprovals", async () => {
+    return { runs: service.getPendingApprovals() };
+  });
+
   app.get("/api/runs/:id", async (request) => {
     const { id } = runIdParams.parse(request.params);
     return { run: service.getRun(id) };
@@ -243,10 +253,6 @@ export async function createApp(
     const body = approvalBody.parse(request.body);
     const userId = getUserId(request);
     return { run: await service.approveRun(id, userId, body.isApprove) };
-  });
-
-  app.get("/api/runs/pendingApprovals", async () => {
-    return { runs: service.getPendingApprovals() };
   });
 
   app.get("/api/dashboard", async () => dashboardService.getDashboard());
