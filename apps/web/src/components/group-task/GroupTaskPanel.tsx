@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { Agent, GroupTaskState } from "../types";
-import { api, ApiError } from "../api";
+import { Agent} from "../../types";
+import { GroupTaskState } from "../../types/group-task";
+import { api, ApiError } from "../../api";
 import CloseIcon from "@mui/icons-material/Close";
-import "../styles/taskpanel.css";
-import Loading from "./Loading";
+import "../../styles/group-task.css";
+import Loading from "../Loading";
 
 function formatTime(value: string): string {
   return new Intl.DateTimeFormat(undefined, {

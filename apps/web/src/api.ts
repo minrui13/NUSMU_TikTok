@@ -1,10 +1,10 @@
 import { Ability, AbilityBody } from "./types/abilities";
 import { AuditEvent } from "./types/audits";
+import { GroupTaskState } from "./types/group-task"
 
 import type {
   Agent,
   AgentRun,
-  GroupTaskState,
   ImmuneMemory,
   ImmuneThreatEvent,
   Message,
