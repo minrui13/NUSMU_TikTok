@@ -531,29 +531,13 @@ The key design principles are:
 
 The Avengers currently provides a focused proof of concept. The following improvements could extend the middleware towards a production-ready Agent platform.
 
-| Middleware category | Future implementation | Benefit |
-|---|---|---|
-| **Identity and Authorisation** | Replace the demo `userId` with secure authentication, user sessions, and role-based access control. | Ensures that only authorised users can create Agents, manage abilities, approve Runs, and view audit history. |
-| **Identity and Authorisation** | Add Agent ownership, permission expiry, revocation, and scoped delegation. | Allows permissions to be limited by user, Agent, resource, time, or task. |
-| **Identity and Authorisation** | Introduce separate human and Agent principals with short-lived credentials. | Prevents Agents from reusing a human’s long-lived session or credentials. |
-| **Identity and Authorisation** | Add approval roles and escalation policies. | Allows organisations to require approval from specific managers, security reviewers, or resource owners. |
-| **Trace, Audit, and Observability** | Replace the local JSON store with a transactional database and append-only audit storage. | Improves durability, concurrency, scalability, and resistance to accidental modification. |
-| **Trace, Audit, and Observability** | Add distributed trace IDs and span IDs across the frontend, control plane, model calls, tools, Runtime, and Multi-Agent coordinator. | Makes it easier to reconstruct an entire Agent Run and diagnose failures. |
-| **Trace, Audit, and Observability** | Add audit-log export, retention policies, access controls, and tamper-evident verification. | Supports compliance, incident investigation, and long-term operational use. |
-| **Trace, Audit, and Observability** | Add metrics for token usage, latency, retries, resource consumption, and cost. | Helps operators monitor reliability and prevent runaway usage. |
-| **Layered Agent Architecture** | Introduce explicit interfaces between identity, policy, coordination, Runtime, storage, and observability layers. | Makes it easier to replace the model provider, Runtime, storage system, or coordination mechanism independently. |
-| **Layered Agent Architecture** | Add provider adapters for multiple model providers and Runtime implementations. | Allows the platform to support Ollama, hosted model APIs, different container engines, and future execution environments. |
-| **Layered Agent Architecture** | Add a dedicated policy service or policy-as-code layer. | Separates policy definition from application logic and enables more expressive rules. |
-| **Threat Modelling and Safety** | Replace heuristic prompt classification with Runtime-level tool and action enforcement. | Prevents an Agent from bypassing controls simply by using wording that the prompt classifier does not recognise. |
-| **Threat Modelling and Safety** | Add path-aware workspace policies, command allowlists, network allowlists, and resource limits. | Restricts exactly which files, commands, domains, CPU, memory, and execution time an Agent may use. |
-| **Threat Modelling and Safety** | Improve Immune Memory with confidence scores, decay, review history, and role-aware patterns. | Prevents old or uncertain decisions from being applied indefinitely or in the wrong context. |
-| **Threat Modelling and Safety** | Add stronger secret detection using secret scanners and configurable redaction policies. | Improves detection of unknown credential formats and reduces accidental exposure. |
-| **Threat Modelling and Safety** | Add security regression tests and adversarial evaluation datasets. | Measures whether new changes weaken existing protections. |
-| **Multi-Agent Coordination** | Persist group-task state and session history in durable storage. | Allows group tasks to resume after a server restart or coordinator failure. |
-| **Multi-Agent Coordination** | Replace fixed round-robin turns with priority, capability-aware, or dependency-aware scheduling. | Allows the most suitable Agent to act based on the current task and previous results. |
-| **Multi-Agent Coordination** | Add Agent-to-Agent delegation with capability attenuation. | Ensures that a delegated Agent cannot receive more permissions than the Agent or human that delegated the task. |
-| **Multi-Agent Coordination** | Add shared-session access controls and participant approval. | Prevents unauthorised Agents from joining or reading a shared conversation. |
-| **User Experience and Governance** | Add a policy simulator and explainable “Why was this blocked?” view. | Allows users to preview an Agent’s permissions and understand policy decisions before execution. |
-| **User Experience and Governance** | Add configurable Agent permission presets such as Documentation Agent, Testing Agent, and Research Agent. | Helps users create safe Agent profiles without manually configuring every ability. |
+| Category              | Future Work                                                                 | Why it Matters                                                                 |
+|-----------------------|------------------------------------------------------------------------------|--------------------------------------------------------------------------------|
+| **Identity**          | Replace the `X-User-Id` header with real authentication and sessions         | Right now identity is self-declared and trivially spoofable — production use needs real login |
+| **Trace/Audit**       | Move the JSON store to a real database with append-only, tamper-evident audit storage | A single JSON file isn't safe for concurrent writes or trustworthy long-term evidence |
+| **Threat Modeling**   | Replace keyword-based action classification with Runtime-level enforcement   | An Agent could phrase a risky request in words the classifier doesn't recognize and slip past the policy check |
+| **Multi-Agent Coordination** | Persist session/group-task state so it survives a server restart       | Right now a coordination session lives in memory and would be lost if the server crashed mid-countdown |
+| **Multi-Agent Coordination** | Add participant approval so only authorized Agents can join a shared session | Prevents an unrelated Agent from joining or reading someone else's coordination session |
+| **UX/Governance**     | Replace polling with real-time push (SSE/WebSockets) for approvals and audit updates | Removes the 3-second notification delay and the constant background polling |
 
 These future improvements would extend The Avengers from a local hackathon prototype into a more durable, scalable, and production-oriented governance layer. They are deliberately separated from the current implementation so that the scope and limitations of the prototype remain clear.
