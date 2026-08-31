@@ -1377,8 +1377,8 @@ By Su Myat Myat Htay [@sumyatmyathtay](https://github.com/SuMyatMyatHtay)
       Credential request       +25
       Data exfiltration        +20
       ----------------------------
-      Total                     63
-```
+      Total                     63```
+    
    Therefore, the run is automatically blocked before the Agent Runtime executes. There should be no approval required for this case.
 
 <img width="960" height="500" alt="image" src="https://github.com/user-attachments/assets/6e2eea9e-ab69-43c5-9198-59b132c9add3" />
