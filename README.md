@@ -17,14 +17,13 @@ Members:
    - [Secret Redaction](#secret-redaction)
    - [Group Task](#group-task)
 7. [Architecture and Design Summary](#architecture-and-design-summary)
-8. [Architecture](#architecture) 
-9. [Demo Steps](#demo-steps)
+8. [Demo Steps](#demo-steps)
    - [Abilities and Audit Log Demo](#abilities-and-audit-log-demo)
    - [Immunity System Demo](#immunity-system-demo)
    - [Secret Redaction Demo](#secret-redaction-demo)
    - [Group Task Demo](#group-task-demo)
-10. [Limitations](#limitations)
-11. [Future Implementations](#future-implementations)
+9. [Limitations](#limitations)
+10. [Future Implementations](#future-implementations)
 
 # Setup Instructions
 
