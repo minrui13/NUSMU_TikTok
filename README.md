@@ -1443,7 +1443,6 @@ It should also be displayed as:
 
 ## Group Task Demo
 By Marcus Yeong Mun Hong [@mxrcxsz12](https://github.com/Mxrcxsz)
-Built a group-chat style middleware where a user writes a task and @mentions which Agents to include. A GroupTaskCoordinator round-robins turns between them in mention order, feeding each Agent the full shared conversation history so they build on each other's turns, until one signals [TASK COMPLETE]. Wired into the platform via new /api/group-tasks routes and a UI panel showing a live turn feed. Tested with a stubbed runner (zero-token unit tests) covering the normal countdown-to-completion case and a stuck/duplicate-turn failure case.  
 
 1. Click the 'Group Task' button from the sidebar
    
