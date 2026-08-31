@@ -1302,18 +1302,54 @@ The key design principles are:
 * **Defence in depth:** Abilities, threat scoring, approval, redaction, and audit logging work together.
 
 # Demo Steps
-## Abilities and Audit Log
+## Abilities and Audit Log Demo
 By Goh Min Rui [@minrui13](https://github.com/minrui13)
+### Abilities & human approval
+* A response can be in 3 different ```allowed```, ```denied```, ```pending_approval```
+1. ```allowed``` (Ability is enabled)
+<img width="960" height="497" alt="image" src="https://github.com/user-attachments/assets/9cc7e1b8-ad05-4423-bc9b-06324324c34c" />
 
-## Immunity System 
+2. ```denied``` (Either ability is disabled or if ability is enabled, it was denied by the user due to high/critical risk)
+<img width="960" height="502" alt="image" src="https://github.com/user-attachments/assets/ea4f3cb9-4e72-4d3c-9e56-93ff386a1cf6" />
+3. ```pending_approval``` (Ability is enabled but prompt may contain high/critical risk actions)
+<img width="960" height="500" alt="image" src="https://github.com/user-attachments/assets/21bf2d04-6b4c-42d0-9778-16088292b9c2" />
+* User can choose to 'Approve' or 'Deny' the run 
+   - If user approves, the agent will allow running the task
+   <img width="960" height="500" alt="image" src="https://github.com/user-attachments/assets/56a21a23-09ac-4524-9fd8-94b1611f9189" />
+
+   - If user denies, the agent will deny running the task
+<img width="960" height="499" alt="image" src="https://github.com/user-attachments/assets/69f5cc84-81a1-4fdb-be68-98350fd3d427" />
+
+> If user is in agent A view while agent B completes its run, a notification will appear to display the results of the run.
+<img width="960" height="494" alt="Screenshot 2026-08-31 220816" src="https://github.com/user-attachments/assets/3717c497-2fff-484e-85ea-83f21121ac03" />
+
+  
+### Managing Abilities 
+1. Navigate to 'Abilities' from the sidebar
+<img width="960" height="499" alt="image" src="https://github.com/user-attachments/assets/83b3fe76-b46d-4884-b13b-14045b3e5ea2" />
+
+### Audit log
+1. Navigate to 'Audit Log' from the sidebar
+#### Single Task
+* Select the 'Single Task Log'
+> Use the filters to see specific logs
+<img width="960" height="499" alt="image" src="https://github.com/user-attachments/assets/493df3d8-eaa9-4e95-9e3c-a7d2151891ed" />
+
+#### Group Task (with help from @mxrcxsz12)
+* Select the 'Group Task Log'
+> Use the filters to see specific logs
+<img width="960" height="501" alt="image" src="https://github.com/user-attachments/assets/dc8c02c6-e762-4478-9d4d-a9d4270c861c" />
+
+
+## Immunity System Demo
 By Su Myat Myat Htay [@sumyatmyathtay](https://github.com/SuMyatMyatHtay)
-## Secret Redaction 
+## Secret Redaction Demo
 By Tham Jodena [@j0-oj](https://github.com/j0-oj)
 
-## Group Task 
+## Group Task Demo
 By Marcus Yeong Mun Hong [@mxrcxsz12](https://github.com/Mxrcxsz)
 Built a group-chat style middleware where a user writes a task and @mentions which Agents to include. A GroupTaskCoordinator round-robins turns between them in mention order, feeding each Agent the full shared conversation history so they build on each other's turns, until one signals [TASK COMPLETE]. Wired into the platform via new /api/group-tasks routes and a UI panel showing a live turn feed. Tested with a stubbed runner (zero-token unit tests) covering the normal countdown-to-completion case and a stuck/duplicate-turn failure case.  
-1. Click 'Group Task' on the sidebar
+1. Click the 'Group Task' button from the sidebar
 <img width="960" height="500" alt="image" src="https://github.com/user-attachments/assets/7774db4f-2a3b-4c72-84b0-e3c476a0f6a6" />
 
 2. In the 'Group Task' dialog, write a task description and tag the group of available agents  with "@" (only agents with ```canJoinSession``` ability can participate)
