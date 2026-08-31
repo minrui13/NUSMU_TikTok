@@ -8,9 +8,10 @@ Members:
 ## Table of Contents
 1. [SetUp Instructions](#setup-instructions)
 2. [Project Introduction](#project-introduction)
-3. [User Flow](#user-flow)
-4. [Middleware](#middleware)
-5. [](#middleware)
+3. [Middleware problem and rationale](#middleware-problem-and-rationale)
+4. [User Flow](#user-flow)
+5. [Middleware Directions](#middleware-directions)
+6. [Design Summary](#design-summary)
 
 # Setup Instructions
 
@@ -454,7 +455,18 @@ The group task completes when an Agent produces the `[TASK COMPLETE]` marker, or
 
 In this way, the Avengers can collaborate—but every hero still has a defined power set, every action is governed, and every important event leaves a trace.
 
-                                                                                                       |
+# Middleware Directions
+The brief lists five recommended directions in this order. 
+This submission covers four of them with real, integrated implementations:
+
+| Direction (brief order)        | Status       | Codebase locations |
+|--------------------------------|--------------|-------------------------|
+| Identity and Authorization     | Implemented  | `abilities/permissions.ts`, `abilities/policy-checker.ts` |
+| Trace, Audit, and Observability| Implemented  | `types/audits.ts`, `AgentService.recordAudit()` |
+| Layered Agent Architecture     | Documented   | This document + `AgentService` boundaries |
+| Threat Modeling and Safety     | Implemented  | `agent-immune.ts` |
+| Multi-Agent Coordination       | Implemented  | `group-task-coordinator.ts`, `mention-parser.ts`, `group-task-service.ts` |
+
 
 # Design Summary
 
@@ -477,7 +489,6 @@ Audit storage and visual evidence
 ```
 
 The key design principles are:
-
 * **Least privilege:** Agents receive only the capabilities they need.
 * **Backend enforcement:** Security decisions are made outside the frontend.
 * **Human oversight:** High-risk actions require explicit approval.
@@ -486,19 +497,63 @@ The key design principles are:
 * **Traceability:** Single-Agent Runs and Multi-Agent Sessions are linked through IDs.
 * **Defence in depth:** Abilities, threat scoring, approval, redaction, and audit logging work together.
 
+
+
 # Limitations
-* The ability catalogue is predefined. Users can manage existing abilities but cannot create arbitrary custom abilities.
-* Prompt classification and threat detection are heuristic and may produce false positives or false negatives.
-* A prompt classifier cannot guarantee that it predicts every action an Agent may perform.
-* Human approval is simplified and does not yet include detailed approval roles, expiry rules, escalation policies, or delegated approval authority.
-* Approval is handled at the Run level rather than through a full enterprise approval workflow.
-* The current identity system is lightweight and does not represent production-grade authentication. (just have a dummy userId right now)
-* Audit events are stored in a local JSON store and are not immutable, tamper-proof, or designed for high-volume production workloads.
-* The audit table only displays events produced by the implemented middleware and may not capture every internal operation performed by the runtime.
-* Notifications and audit updates use polling, so the interface may have a short delay before showing new events.
-* Secret redaction depends on known secret values and supported credential patterns.
-* Immune Memory relies on previously confirmed patterns and does not provide perfect threat intelligence.
-* The Multi-Agent coordinator is intentionally lightweight and does not provide a full distributed messaging or scheduling system.
-* `canJoinSession` controls participation in the implemented coordinator but does not prevent every possible form of Agent-to-Agent privilege escalation.
-* The local container runtime is not a hardened multi-tenant isolation boundary.
-* Risk thresholds are prototype rules and are not formally calibrated security guarantees.
+
+* **Heuristic prompt classification:** The ability classifier uses keyword and pattern matching to estimate which capabilities a prompt may require. It may under-classify or over-classify ambiguous prompts.
+
+* **Heuristic Immune Engine detection:** The Immune Engine relies on configured regex patterns, known threat indicators, weighted signals, and previously confirmed patterns. It targets observed failure modes but cannot guarantee detection of every adversarial, malformed, or novel input. It may also produce false positives or false negatives.
+
+* **Limited Immune Memory:** Immune Memory is based on previously confirmed threat patterns and does not provide complete or continuously updated threat intelligence. New attack techniques may not be recognised until their patterns are added or confirmed.
+
+* **Simplified risk thresholds:** The 0–100 risk score and its allow, review, and block thresholds are prototype rules. They have not been formally calibrated against a large real-world dataset and should not be treated as guaranteed security boundaries.
+
+* **Simplified human approval:** Approval is handled at the individual Run level. The prototype does not yet include detailed approval roles, approval expiry, escalation policies, or delegated approval authority.
+
+* **Lightweight identity model:** The current prototype uses a demo or lightweight `userId` rather than production-grade authentication. A production system would need secure sessions, user ownership, role-based access control, and stronger authorisation checks.
+
+* **Limited audit guarantees:** Audit events are stored in the local JSON store. They are not immutable, tamper-proof, or designed for high-volume production workloads. The audit table only displays events captured by the implemented middleware and may not represent every internal runtime operation.
+
+* **Secret-redaction coverage:** Redaction depends on known secret values and supported credential patterns. It may not detect every possible secret format or sensitive value. Redaction also cannot protect a secret that was already exposed before reaching the redaction layer.
+
+* **Lightweight Multi-Agent coordination:** Group-task state is held in memory for the current server process and does not survive a server restart. Agent turns use fixed round-robin ordering, and the coordinator does not provide a full distributed messaging or scheduling system.
+
+* **Coordination and privilege boundaries:** `canJoinSession` controls participation in the implemented group-task coordinator, but it does not prevent every possible form of Agent-to-Agent privilege escalation or confused delegation.
+
+* **Notification delay:** Approval and audit updates use polling, so notifications and status changes may take a few seconds to appear in the frontend.
+
+* **Runtime isolation:** The local container runtime is suitable for demonstrating the middleware but is not a hardened multi-tenant security boundary.
+
+* **Local data persistence:** Agent, Run, and audit data use local JSON persistence, while in-memory group-task state is lost when the server process stops. A production deployment would require a transactional database and durable coordination state.
+
+# Future Implementations
+
+The Avengers currently provides a focused proof of concept. The following improvements could extend the middleware towards a production-ready Agent platform.
+
+| Middleware category | Future implementation | Benefit |
+|---|---|---|
+| **Identity and Authorisation** | Replace the demo `userId` with secure authentication, user sessions, and role-based access control. | Ensures that only authorised users can create Agents, manage abilities, approve Runs, and view audit history. |
+| **Identity and Authorisation** | Add Agent ownership, permission expiry, revocation, and scoped delegation. | Allows permissions to be limited by user, Agent, resource, time, or task. |
+| **Identity and Authorisation** | Introduce separate human and Agent principals with short-lived credentials. | Prevents Agents from reusing a human’s long-lived session or credentials. |
+| **Identity and Authorisation** | Add approval roles and escalation policies. | Allows organisations to require approval from specific managers, security reviewers, or resource owners. |
+| **Trace, Audit, and Observability** | Replace the local JSON store with a transactional database and append-only audit storage. | Improves durability, concurrency, scalability, and resistance to accidental modification. |
+| **Trace, Audit, and Observability** | Add distributed trace IDs and span IDs across the frontend, control plane, model calls, tools, Runtime, and Multi-Agent coordinator. | Makes it easier to reconstruct an entire Agent Run and diagnose failures. |
+| **Trace, Audit, and Observability** | Add audit-log export, retention policies, access controls, and tamper-evident verification. | Supports compliance, incident investigation, and long-term operational use. |
+| **Trace, Audit, and Observability** | Add metrics for token usage, latency, retries, resource consumption, and cost. | Helps operators monitor reliability and prevent runaway usage. |
+| **Layered Agent Architecture** | Introduce explicit interfaces between identity, policy, coordination, Runtime, storage, and observability layers. | Makes it easier to replace the model provider, Runtime, storage system, or coordination mechanism independently. |
+| **Layered Agent Architecture** | Add provider adapters for multiple model providers and Runtime implementations. | Allows the platform to support Ollama, hosted model APIs, different container engines, and future execution environments. |
+| **Layered Agent Architecture** | Add a dedicated policy service or policy-as-code layer. | Separates policy definition from application logic and enables more expressive rules. |
+| **Threat Modelling and Safety** | Replace heuristic prompt classification with Runtime-level tool and action enforcement. | Prevents an Agent from bypassing controls simply by using wording that the prompt classifier does not recognise. |
+| **Threat Modelling and Safety** | Add path-aware workspace policies, command allowlists, network allowlists, and resource limits. | Restricts exactly which files, commands, domains, CPU, memory, and execution time an Agent may use. |
+| **Threat Modelling and Safety** | Improve Immune Memory with confidence scores, decay, review history, and role-aware patterns. | Prevents old or uncertain decisions from being applied indefinitely or in the wrong context. |
+| **Threat Modelling and Safety** | Add stronger secret detection using secret scanners and configurable redaction policies. | Improves detection of unknown credential formats and reduces accidental exposure. |
+| **Threat Modelling and Safety** | Add security regression tests and adversarial evaluation datasets. | Measures whether new changes weaken existing protections. |
+| **Multi-Agent Coordination** | Persist group-task state and session history in durable storage. | Allows group tasks to resume after a server restart or coordinator failure. |
+| **Multi-Agent Coordination** | Replace fixed round-robin turns with priority, capability-aware, or dependency-aware scheduling. | Allows the most suitable Agent to act based on the current task and previous results. |
+| **Multi-Agent Coordination** | Add Agent-to-Agent delegation with capability attenuation. | Ensures that a delegated Agent cannot receive more permissions than the Agent or human that delegated the task. |
+| **Multi-Agent Coordination** | Add shared-session access controls and participant approval. | Prevents unauthorised Agents from joining or reading a shared conversation. |
+| **User Experience and Governance** | Add a policy simulator and explainable “Why was this blocked?” view. | Allows users to preview an Agent’s permissions and understand policy decisions before execution. |
+| **User Experience and Governance** | Add configurable Agent permission presets such as Documentation Agent, Testing Agent, and Research Agent. | Helps users create safe Agent profiles without manually configuring every ability. |
+
+These future improvements would extend The Avengers from a local hackathon prototype into a more durable, scalable, and production-oriented governance layer. They are deliberately separated from the current implementation so that the scope and limitations of the prototype remain clear.
