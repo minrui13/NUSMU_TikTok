@@ -12,14 +12,14 @@ Members:
 4. [Our Solution](#our-solution)
 5. [User Flow](#user-flow)
 5. [Implemented Middleware](#implemented-middleware)
-   - [Abilities and Audit](#abilities-and-audit)
+   - [Abilities and Audit Log](#abilities-and-audit-log)
    - [Immunity System](#immunity-system)
    - [Secret Redaction](#secret-redaction)
    - [Group Task](#group-task)
 7. [Architecture and Design Summary](#architecture-and-design-summary)
 8. [Architecture](#architecture) 
 9. [Individual Demo Steps](#individual-demo-steps)
-   - [Abilities and Audit](#abilities-and-audit)
+   - [Abilities and Audit Log](#abilities-and-audit-log)
    - [Immunity System](#immunity-system)
    - [Secret Redaction](#secret-redaction)
    - [Group Task](#group-task)
@@ -488,6 +488,256 @@ The group task completes when an Agent produces the `[TASK COMPLETE]` marker, or
 In this way, the Avengers can collaborate—but every hero still has a defined power set, every action is governed, and every important event leaves a trace.
 
 # Implemented Middleware
+
+## Abilities and Audit Log
+By Goh Min Rui [@minrui13](https://github.com/minrui13)
+### Problem
+AI Agents can perform powerful actions such as reading workspace files, modifying code, running shell commands, accessing secrets, and using external services. However, not every Agent should have unrestricted access, and not every permitted action should execute automatically.
+
+A simple permission switch is also insufficient on its own. Users need to understand what an Agent attempted, why the action was allowed or blocked, whether human approval was required, and what happened after the decision.
+
+### Solution
+
+The Avengers introduces a unified Agent governance middleware that combines:
+
+* Per-Agent abilities.
+* Risk-based policy decisions.
+* Human approval for high-risk actions.
+* Persistent audit events.
+
+The governance flow is:
+
+```text
+User prompt
+    ↓
+Action classification
+    ↓
+Agent ability check
+    ↓
+Risk evaluation
+    ↓
+Allow, deny, or request approval
+    ↓
+Agent Runtime
+    ↓
+Audit record
+```
+
+The decision is made by the backend before the request reaches the Agent Runtime. The frontend displays and manages the policy, but it is not trusted to enforce it.
+
+### Per-Agent abilities
+
+Each Agent has its own ability profile. The available abilities include:
+
+| Ability             | Purpose                                              | Risk     |
+| ------------------- | ---------------------------------------------------- | -------- |
+| `canReadWorkspace`  | Read files in the Agent’s workspace.                 | Low      |
+| `canWriteWorkspace` | Create, edit, or delete workspace files.             | Medium   |
+| `canRunCommand`     | Run shell commands, tests, builds, or installations. | High     |
+| `canAccessSecrets`  | Access credentials, tokens, or secret files.         | Critical |
+| `canUseNetwork`     | Connect to external websites or services.            | High     |
+| `canJoinSession`    | Participate in a shared Multi-Agent session.         | Medium   |
+
+New Agents receive a least-privilege default profile:
+
+```text
+Read workspace files     Enabled
+Write workspace files    Enabled
+Run shell commands       Disabled
+Access secrets           Disabled
+Use network              Disabled
+Join shared sessions     Disabled
+```
+
+Users can manage the abilities of each Agent through the Abilities view. The backend stores the Agent’s current permission profile and uses it during policy evaluation.
+
+### Ability enforcement
+
+When a user submits a prompt, the system classifies the capabilities that may be required.
+
+For example:
+
+```text
+Run npm test and fix any failures.
+```
+
+may require:
+
+```text
+canReadWorkspace
+canWriteWorkspace
+canRunCommand
+```
+
+The policy checker compares these required abilities against the Agent’s granted abilities.
+
+If an ability is missing:
+
+```text
+Agent does not have canRunCommand
+    ↓
+Run is denied
+    ↓
+Agent Runtime is never called
+    ↓
+A clear reason is shown to the user
+    ↓
+The decision is recorded
+```
+
+This enforcement occurs in the backend, meaning that bypassing the React interface does not bypass the policy check.
+
+### Risk-based decisions
+
+Having an ability does not always mean that the Agent can act immediately.
+
+The system distinguishes between ordinary actions and high-risk actions:
+
+```text
+Ability not granted
+    → Denied
+
+Ability granted + low/medium risk
+    → Allowed
+
+Ability granted + high/critical risk
+    → Pending human approval
+```
+
+For example:
+
+```text
+Agent has canRunCommand
++ command execution is high risk
+→ Run becomes pending_approval
+```
+
+The Run remains paused until a human explicitly approves or denies that particular Run.
+
+Changing an Agent’s permissions does not automatically approve an existing pending Run.
+
+### Human approval
+
+High-risk actions produce a `pending_approval` Run rather than immediately reaching the Agent Runtime.
+
+The user can review:
+
+```text
+Agent
+Requested action
+Original prompt
+Risk level
+Reason for review
+```
+
+The user can then:
+
+```text
+Approve
+→ Run continues and reaches the Agent Runtime
+
+Deny
+→ Run is stopped and marked as denied
+```
+
+Both decisions are added to the audit history.
+
+This creates two separate controls:
+
+```text
+Agent ability
+→ standing permission to request a capability
+
+Human approval
+→ one-time permission for a specific high-risk Run
+```
+
+### Audit logging
+
+Every important policy and approval decision is written to the audit log.
+
+The shared audit function is implemented in:
+
+```text
+apps/server/src/agent-service.ts
+```
+
+It records events to the existing JSON store:
+
+```text
+apps/server/src/store.ts
+```
+
+Each audit event can contain:
+
+```text
+User ID
+Agent ID
+Run ID
+Session ID
+Actor
+Action
+Risk
+Decision
+Reason
+Prompt
+Timestamp
+```
+
+Examples of recorded events include:
+
+```text
+canRunCommand → pending_approval
+canAccessSecrets → denied
+approve_run → allowed
+deny_run → denied
+grant_canUseNetwork → allowed
+```
+
+The audit history is displayed through the Audit view, allowing users to inspect both successful and unsuccessful decisions.
+
+### Persistent conversation evidence
+
+When a Run is denied or fails because of a policy decision, the system also stores a system message in the Agent’s conversation history.
+
+This means that the result remains visible after the user navigates away and returns:
+
+```text
+User:
+Read the .env file.
+
+Policy System:
+Run denied: canAccessSecrets is not granted to this Agent.
+```
+
+Temporary notifications provide immediate feedback, while the stored system message and audit event provide lasting evidence.
+
+### Implementation boundaries
+
+The main implementation is distributed across these backend areas:
+
+```text
+apps/server/src/middleware/permissions.ts
+→ Ability definitions and risk levels
+
+apps/server/src/middleware/policy-checker.ts
+→ Ability evaluation and policy decisions
+
+apps/server/src/agent-service.ts
+→ Enforcement before Agent execution, approval handling, and audit recording
+
+apps/server/src/types.ts
+→ Agent, Run, ability, and audit-event contracts
+
+apps/server/src/store.ts
+→ Persistent JSON storage for Agents, Runs, and audit events
+
+apps/server/src/app.ts
+→ API routes for updating abilities, reading audit events, and approving Runs
+```
+
+Together, these components turn Agent permissions from a frontend setting into a backend-enforced governance system.
+
 ## Immunity System 
 By Su Myat Myat Htay [@sumyatmyathtay](https://github.com/SuMyatMyatHtay)
 ## Secret Redaction 
@@ -795,8 +1045,9 @@ The key design principles are:
 * **Defence in depth:** Abilities, threat scoring, approval, redaction, and audit logging work together.
 
 # Demo Steps
-## Abilities and Audit 
+## Abilities and Audit Log
 By Goh Min Rui [@minrui13](https://github.com/minrui13)
+
 ## Immunity System 
 By Su Myat Myat Htay [@sumyatmyathtay](https://github.com/SuMyatMyatHtay)
 ## Secret Redaction 
