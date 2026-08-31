@@ -461,6 +461,7 @@ button {
 .playground h2,
 .settings-panel h2,
 .modal h2,
+p,
 .no-agent h1 {
   font-family: ui-rounded, "SF Pro Rounded", system-ui, sans-serif;
   letter-spacing: -0.035em;
@@ -1142,7 +1143,9 @@ textarea:focus {
   justify-content: center;
   gap: 0.5rem;
   font-weight: 500;
-  transition: background-color 0.2s ease, border-color 0.2s ease;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease;
 }
 
 .sidebar .group-task-button .button-icon {
@@ -1163,4 +1166,9 @@ textarea:focus {
 .button-secondary:hover {
   background-color: var(--bg-surface-hover, #363a43);
   border-color: var(--border-hover-color, #525866);
+}
+
+.message-system .message-body {
+  color: rgb(237, 108, 2);
+  font-weight: 500;
 }

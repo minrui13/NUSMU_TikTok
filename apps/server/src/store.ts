@@ -1,5 +1,6 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
+
 import type { Database } from "./types.js";
 
 const emptyDatabase = (): Database => ({

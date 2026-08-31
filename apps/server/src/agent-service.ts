@@ -1,20 +1,22 @@
-import { isArkConfigured } from "./config.js";
-import { HttpError, RunCancelledError } from "./errors.js";
+import { randomUUID } from "node:crypto";
+
 import {
   classifyAction,
   defaultAgentAbilities,
-} from "./middleware/permissions.js";
+} from "./abilities/permissions.js";
 import {
   checkAbility,
   evaluateAction,
   overallDecision,
-} from "./middleware/policy-checker.js";
+} from "./abilities/policy-checker.js";
+import { isArkConfigured } from "./config.js";
+import { HttpError, RunCancelledError } from "./errors.js";
 import { JsonStore } from "./store.js";
-
 import { Ability } from "./types/abilities.js";
 import { AuditEntry } from "./types/audits.js";
+import { getKnownSecrets, redactSecrets } from "./utils/redaction.js";
 import { WorkspaceManager } from "./workspace.js";
-import { randomUUID } from "node:crypto";
+
 import type { AppConfig } from "./config.js";
 import type {
   Agent,
@@ -25,7 +27,6 @@ import type {
   Message,
   UpdateAgentInput,
 } from "./types.js";
-import { getKnownSecrets, redactSecrets } from "./utils/redaction.js";
 
 const now = () => new Date().toISOString();
 
@@ -329,7 +330,9 @@ export class AgentService {
       sessionId: null,
       runId: null,
       actor: "human",
-      action: "updateAbilities:" + JSON.stringify(patch),
+      action: Object.entries(patch)
+        .map(([k, v]) => (v ? "grant:" : "revoke:") + k)
+        .join(","),
       risk: null,
       decision: "allowed",
       reason: null,
@@ -496,6 +499,7 @@ export class AgentService {
 
   /* Human approval for high-risk agent actions */
   // When disapprove, it finds the run and then don't let the agent
+  // This is also used for error messages
   private async denyRun(
     agentId: string,
     runId: string,
@@ -513,6 +517,14 @@ export class AgentService {
         storedRun.status = status;
         storedRun.error = reason;
         storedRun.completedAt = now();
+        database.messages.push({
+          id: randomUUID(),
+          agentId,
+          runId,
+          role: "system",
+          content: `Run denied: ${reason}`,
+          createdAt: now(),
+        });
       }
     });
   }
@@ -578,6 +590,13 @@ export class AgentService {
       .catch(() => undefined);
 
     return this.getRun(runId);
+  }
+
+  getAllRuns(): AgentRun[] {
+    return this.store
+      .snapshot()
+      .runs.slice()
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
 
   checkCanJoinSession(agentId: string): { allowed: boolean; reason: string } {

@@ -1,15 +1,19 @@
-import { HttpError } from "./errors.js";
-import { defaultAgentAbilities } from "./middleware/permissions.js";
-import { Ability } from "./types/abilities.js";
+import { timingSafeEqual } from "node:crypto";
+import { fileURLToPath } from "node:url";
+
 import cors from "@fastify/cors";
 import fastifyStatic from "@fastify/static";
 import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
 import { z } from "zod";
-import { timingSafeEqual } from "node:crypto";
-import { fileURLToPath } from "node:url";
+
+import { defaultAgentAbilities } from "./abilities/permissions.js";
+import { HttpError } from "./errors.js";
+import { Ability } from "./types/abilities.js";
+import { getKnownSecrets, redactSecrets } from "./utils/redaction.js";
+
+
 import type { AgentService } from "./agent-service.js";
 import type { AppConfig } from "./config.js";
-import { getKnownSecrets, redactSecrets } from "./utils/redaction.js";
 import type { GroupTaskService } from "./group-task-service.js"; // add import
 
 const agentIdParams = z.object({ id: z.string().uuid() });
@@ -152,6 +156,10 @@ export async function createApp(
     return reply.code(202).send(result);
   });
 
+  app.get("/api/runs", async () => {
+    return { runs: service.getAllRuns() };
+  });
+
   app.get("/api/runs/:id", async (request) => {
     const { id } = runIdParams.parse(request.params);
     return { run: service.getRun(id) };
@@ -191,7 +199,7 @@ export async function createApp(
   // Shows the audit history for a specified Agent
   // Each event records who performed the action, which Agent was affected,
   // whether the policy allowed or denied it, and the reason for the decision.
-  app.get("/api/agents/auditEvents", async (request) => {
+  app.get("/api/agents/auditEvents", async () => {
     return { events: service.getAuditEvents() };
   });
 

@@ -16,10 +16,9 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test -w @launchpad/server",
     "check": "npm run typecheck && npm run test && npm run build",
-    "poc": "./scripts/start-local-poc.sh",
+    "poc": "npx dotenv-cli -- bash ./scripts/start-local-poc.sh",
     "start": "npm run start -w @launchpad/server",
-    "start:poc": "npx nodemon --watch src -e ts,js,json --exec \"npm run exec:poc\"",
-    "exec:poc": "npx eslint --fix && npx cross-env ARK_API_KEY=ollama ARK_MODEL=qwen2.5-coder:7b ARK_BASE_URL=http://host.docker.internal:11434/v1 bash scripts/start-local-poc.sh"
+    "start:poc": "npx nodemon --watch src -e ts,js,json --exec \"npm run exec:poc\""
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -41,6 +40,7 @@
     "@emotion/styled": "^11.14.1",
     "@mui/icons-material": "^9.4.0",
     "@mui/material": "^9.4.0",
-    "@mui/styles": "^6.5.0"
+    "@mui/styles": "^6.5.0",
+    "react-toastify": "^11.1.0"
   }
 }

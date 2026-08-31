@@ -1,5 +1,3 @@
-import Loading from "./Loading";
-import { Ability } from "../types/abilities";
 import {
   Checkbox,
   Chip,
@@ -10,11 +8,15 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Theme,
 } from "@mui/material";
+import { makeStyles } from "@mui/styles";
+
+import { Ability } from "../types/abilities";
+
+import Loading from "./Loading";
+
 import type { Agent } from "../types";
 import "../styles/abilities.css";
-import { makeStyles } from "@mui/styles";
 
 interface AbilityMeta {
   key: Ability;
@@ -43,7 +45,7 @@ function riskColour(risk: AbilityMeta["risk"]) {
   }
 }
 
-const useStyles = makeStyles((theme: Theme) => ({
+const useStyles = makeStyles(() => ({
   container: {
     borderRadius: "17px",
     overflowX: "auto",
@@ -86,7 +88,7 @@ export function AbilitiesTable({
             <TableRow>
               <TableCell className="abilities-table-cell abilities-sticky-column">
                 <p className="p-0" style={{ color: "rgba(79, 79, 79, 0.87)" }}>
-                  Agents
+                  {"Agents\r"}
                 </p>
               </TableCell>
               {abilities.map((item) => (

@@ -1,4 +1,5 @@
 import { AuditDecision, AuditEvent } from "./types/audits.js";
+
 import type { Ability, Risk } from "./types/abilities.ts";
 
 export type RunStatus =
@@ -12,7 +13,7 @@ export type RunStatus =
 
 export type AgentStatus = "ready" | "busy" | "stopped" | "error";
 
-export type MessageRole = "user" | "assistant";
+export type MessageRole = "user" | "assistant" | "system";
 
 export interface Agent {
   id: string;

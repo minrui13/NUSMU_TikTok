@@ -1,10 +1,11 @@
 import { HttpError } from "./errors.js";
-import type { AgentService } from "./agent-service.js";
 import {
   GroupTaskCoordinator,
   type GroupTaskState,
 } from "./group-task-coordinator.js";
 import { parseMentionedAgents } from "./mention-parser.js";
+
+import type { AgentService } from "./agent-service.js";
 
 export class GroupTaskService {
   private readonly tasks = new Map<string, GroupTaskCoordinator>();

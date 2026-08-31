@@ -1,5 +1,6 @@
 import { mkdir, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
+
 import type { Agent } from "./types.js";
 
 export class WorkspaceManager {

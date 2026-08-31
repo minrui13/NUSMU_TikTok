@@ -1,8 +1,7 @@
-
 export const defaultAbilities: {
   key: Ability;
   label: string;
-  risk: "low" | "medium" | "high" | "critical";
+  risk: Risk;
 }[] = [
   { key: "canReadWorkspace", label: "Read", risk: "low" },
   { key: "canWriteWorkspace", label: "Write", risk: "medium" },
@@ -11,6 +10,8 @@ export const defaultAbilities: {
   { key: "canUseNetwork", label: "Network", risk: "high" },
   { key: "canJoinSession", label: "Join sessions", risk: "medium" },
 ];
+
+export type Risk = "low" | "medium" | "high" | "critical";
 
 export type Ability =
   | "canReadWorkspace"
