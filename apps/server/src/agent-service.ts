@@ -242,7 +242,7 @@ export class AgentService {
       );
     }
     const timestamp = now();
-    const safePrompt = redactSecrets(prompt, getKnownSecrets());
+    const safePrompt = redactSecrets(prompt, getKnownSecrets([this.config.arkApiKey, this.config.authToken]));
     const runId = randomUUID();
     const run: AgentRun = {
       id: runId,
@@ -433,7 +433,7 @@ export class AgentService {
         const event = this.immune.createThreatEvent({
           agentId: agentAtStart.id,
           runId: run.id,
-          prompt: redactSecrets(run.prompt, getKnownSecrets()),
+          prompt: redactSecrets(run.prompt, getKnownSecrets([this.config.arkApiKey, this.config.authToken])),
           assessment,
         });
         const completedAt = now();
@@ -479,7 +479,7 @@ export class AgentService {
           (item) => item.id === agentAtStart.id,
         );
         if (!storedRun || !agent) return;
-        const safeOutput = redactSecrets(result.output, getKnownSecrets());
+        const safeOutput = redactSecrets(result.output, getKnownSecrets([this.config.arkApiKey, this.config.authToken]));
         storedRun.status = "completed";
         storedRun.output = safeOutput;
         storedRun.usage = result.usage;
@@ -501,7 +501,7 @@ export class AgentService {
       const completedAt = now();
       const cancelled = error instanceof RunCancelledError;
       const message = error instanceof Error ? error.message : String(error);
-      const safeMessage = redactSecrets(message, getKnownSecrets());
+      const safeMessage = redactSecrets(message, getKnownSecrets([this.config.arkApiKey, this.config.authToken]));
       await this.store.mutate((database) => {
         const storedRun = database.runs.find((item) => item.id === run.id);
         const agent = database.agents.find(
@@ -560,7 +560,7 @@ export class AgentService {
   // if the policy allows, denies or pauses the action,
   // if a human approves or rejects a pending action
   private async recordAudit(entry: AuditEntry): Promise<void> {
-    const safeEntry = redactSecrets(entry, getKnownSecrets());
+    const safeEntry = redactSecrets(entry, getKnownSecrets([this.config.arkApiKey, this.config.authToken]));
     await this.store.mutate((database) => {
       database.auditEvents.push({
         id: randomUUID(),

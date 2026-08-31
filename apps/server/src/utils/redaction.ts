@@ -1,7 +1,7 @@
 const SECRET_ENV_VARS = ["ARK_API_KEY", "APP_AUTH_TOKEN"];
 
-export function getKnownSecrets(): string[] {
-  return SECRET_ENV_VARS.map((name) => process.env[name]).filter(
+export function getKnownSecrets(additionalSecrets: string[] = []): string[] {
+  return [...SECRET_ENV_VARS.map((name) => process.env[name]), ...additionalSecrets].filter(
     (value): value is string => typeof value === "string" && value.length > 0,
   );
 }
@@ -20,10 +20,10 @@ export function redactSecrets<T>(value: T, secrets: string[]): T {
   function redactString(input: string): string {
     let out = input;
     for (const secret of cleanSecrets) {
-      out = out.split(secret).join("");
+      out = out.split(secret).join("[REDACTED]");
     }
     for (const pattern of GENERIC_SECRET_PATTERNS) {
-      out = out.replace(pattern, "");
+      out = out.replace(pattern, "[REDACTED]");
     }
     return out;
   }
