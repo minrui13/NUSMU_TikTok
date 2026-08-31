@@ -21,10 +21,12 @@ const agentIdParams = z.object({ id: z.string().uuid() });
 const runIdParams = z.object({ id: z.string().uuid() });
 const immuneEventIdParams = z.object({ id: z.string().uuid() });
 const immuneReviewBody = z.object({ action: z.enum(["confirm", "dismiss"]) });
+const agentRole = z.enum(["frontend_developer", "backend_developer", "fullstack_developer", "marketing", "admin"]);
 const createAgentBody = z.object({
   name: z.string().trim().min(1).max(80),
   description: z.string().max(500).optional(),
   instructions: z.string().max(10_000).optional(),
+  role: agentRole.optional(),
 });
 const groupTaskIdParams = z.object({ id: z.string().uuid() });
 const createGroupTaskBody = z.object({
@@ -248,6 +250,9 @@ export async function createApp(
   });
 
   app.get("/api/dashboard", async () => dashboardService.getDashboard());
+  app.get("/api/admin/trust-summary", async () => {
+    return { items: service.getTrustSummary() };
+  });
 
   if (config.nodeEnv === "production") {
     const webRoot = fileURLToPath(new URL("../../web/dist", import.meta.url));
