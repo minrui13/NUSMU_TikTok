@@ -77,11 +77,11 @@ http://localhost:3000
 
 # Project Introduction
 
-## The Avengers
+## AvengerAI
 
-**The Avengers** is a governance and coordination middleware layer for the Agent Launchpad.
+**AvengerAI** is a governance and coordination middleware layer for the Agent Launchpad.
 
-The platform allows multiple specialised AI Agents to read files, write code, run commands, access external services, and collaborate with one another. The Avengers adds the security and coordination controls needed to make these capabilities safer, more accountable, and easier to understand.
+The platform allows multiple specialised AI Agents to read files, write code, run commands, access external services, and collaborate with one another. AvengerAI adds the security and coordination controls needed to make these capabilities safer, more accountable, and easier to understand.
 
 Each Agent has its own:
 
@@ -115,7 +115,7 @@ Without middleware, users may not know:
 * Whether a group task completed correctly.
   
 # Our Solution
-The Avengers provides a governance layer for AI Agents that balances capability with control.
+AvengerAI provides a governance layer for AI Agents that balances capability with control.
 
 Instead of allowing every Agent to act freely, each Agent receives a defined set of abilities. When a user submits a task, the request is evaluated before it reaches the Agent Runtime. The system checks the Agent’s permissions, analyses the request for suspicious behaviour, calculates its risk, and decides whether to allow, deny, automatically block, or hold the Run for human approval.
 
@@ -141,7 +141,7 @@ This allows the Avengers to work together without giving every Agent unrestricte
 
 # User Flow
 
-The Avengers combines identity, Agent abilities, threat detection, human approval, secret redaction, auditability, and Multi-Agent coordination into one governance layer.
+The AvengerAI combines identity, Agent abilities, threat detection, human approval, secret redaction, auditability, and Multi-Agent coordination into one governance layer.
 
 The overall flow is:
 
@@ -197,7 +197,7 @@ For example:
 Run the project tests and fix any failures.
 ```
 
-Before the task reaches the Agent Runtime, The Avengers evaluates it:
+Before the task reaches the Agent Runtime, AvengerAI evaluates it:
 
 ```text
 User prompt
@@ -484,7 +484,7 @@ Turn 3 → Testing Agent
 
 The group task completes when an Agent produces the `[TASK COMPLETE]` marker, or fails when the coordinator detects a timeout, duplicate response, skipped turn, or maximum-turn limit.
 
-In this way, the Avengers can collaborate—but every hero still has a defined power set, every action is governed, and every important event leaves a trace.
+In this way, the AvengerAI can collaborate—but every hero still has a defined power set, every action is governed, and every important event leaves a trace.
 
 # Implemented Middleware
 
@@ -497,7 +497,7 @@ A simple permission switch is also insufficient on its own. Users need to unders
 
 ### Solution
 
-The Avengers introduces a unified Agent governance middleware that combines:
+The AvengerAI introduces a unified Agent governance middleware that combines:
 
 * Per-Agent abilities.
 * Risk-based policy decisions.
@@ -747,7 +747,7 @@ A simple permission check is not always enough. An Agent may have a particular a
 
 ### Solution
 
-The Avengers introduces an **Agent Immune System** middleware that analyses each prompt before execution.
+AvengerAI introduces an **Agent Immune System** middleware that analyses each prompt before execution.
 
 The Immune System:
 
@@ -1005,7 +1005,7 @@ If sensitive values are persisted or returned to the frontend, they may be expos
 
 ### Solution
 
-The Avengers includes a shared, stateless redaction utility located at:
+AvengerAI includes a shared, stateless redaction utility located at:
 
 ```text
 apps/server/src/utils/redaction.ts
@@ -1115,7 +1115,7 @@ Users also need to understand:
 
 ### Solution
 
-The Avengers introduces a lightweight group-chat style coordination middleware.
+AvengerAI introduces a lightweight group-chat style coordination middleware.
 
 A user creates a group task by writing a prompt and mentioning the Agents they want to involve:
 
@@ -1274,7 +1274,7 @@ This demonstrates that the coordination layer can route turns and maintain share
 <img width="2912" height="2356" alt="TechJam" src="https://github.com/user-attachments/assets/2f3fc106-59f6-4e07-b524-a37bb06d0f0c" />
 
 ## Design Summary
-The Avengers uses layered enforcement:
+AvengerAI uses layered enforcement:
 
 ```text
 Identity and authorisation
@@ -1493,7 +1493,7 @@ Once the group task status becomes "completed", the group task is done.
 
 # Future Implementations
 
-The Avengers currently provides a focused proof of concept. The following improvements could extend the middleware towards a production-ready Agent platform.
+AvengerAI currently provides a focused proof of concept. The following improvements could extend the middleware towards a production-ready Agent platform.
 
 | Category              | Future Work                                                                 | Why it Matters                                                                 |
 |-----------------------|------------------------------------------------------------------------------|--------------------------------------------------------------------------------|
@@ -1504,4 +1504,4 @@ The Avengers currently provides a focused proof of concept. The following improv
 | **Multi-Agent Coordination** | Add participant approval so only authorized Agents can join a shared session | Prevents an unrelated Agent from joining or reading someone else's coordination session |
 | **UX/Governance**     | Replace polling with real-time push (SSE/WebSockets) for approvals and audit updates | Removes the 3-second notification delay and the constant background polling |
 
-These future improvements would extend The Avengers from a local hackathon prototype into a more durable, scalable, and production-oriented governance layer. They are deliberately separated from the current implementation so that the scope and limitations of the prototype remain clear.
+These future improvements would extend AvengerAI from a local hackathon prototype into a more durable, scalable, and production-oriented governance layer. They are deliberately separated from the current implementation so that the scope and limitations of the prototype remain clear.
