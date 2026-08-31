@@ -71,70 +71,54 @@ export function GroupTaskPanel({
 
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true">
-      <div className="modal">
-        <div className="modal-header group-task-panel">
-          <h2 className="group-task-panel-title">{"Group Task"}</h2>
-          <button
-            className="button icon-button"
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-          >
-            <CloseIcon
-              sx={{
-                color: "rgba(0, 0, 0, 0.2)",
-                "&:hover": { color: "rgba(0, 0, 0, 0.5)" },
-              }}
-            />
+      <div className="modal group-task-modal">
+        <div className="modal-header">
+          <h2>Group Task</h2>
+          <button className="icon-button close-button" onClick={onClose} aria-label="Close">
+            ✕
           </button>
         </div>
 
         {!task && (
           <div className="modal-body">
-            <label>
-              {"Task description — mention Agents with @name\r"}
+            <div className="form-group">
+              <label htmlFor="group-task-desc">
+                Task description — mention Agents with @name
+              </label>
               <textarea
-                rows={3}
+                id="group-task-desc"
+                rows={4}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Count off from 10, subtract 1 each turn, no repeats, until you reach 1 @AgentA @AgentB"
               />
-            </label>
-            <div className="group-task-panel-agents hint">
-              <p className="group-task-panel-agents-label">
-                Available Agents:{" "}
-              </p>
-              <div className="group-task-panel-agents-names">
-                {agents.map((a) => (
-                  <code
-                    key={a.id}
-                    className={
-                      mentionedAgents.some((m) => m.id === a.id)
-                        ? "mention-hit"
-                        : ""
-                    }
-                  >
-                    {"@"}
-                    {a.name}
-                  </code>
-                ))}
-              </div>
             </div>
+
+            <div className="agent-tag-list">
+              <span className="hint-label">Available Agents:</span>
+              {agents.map((a) => (
+                <code
+                  key={a.id}
+                  className={`agent-tag ${mentionedAgents.some((m) => m.id === a.id) ? "mention-hit" : ""}`}
+                >
+                  @{a.name}
+                </code>
+              ))}
+            </div>
+
             {mentionedAgents.length > 0 && (
-              <div className="hint">
-                {"Participants in order:"}{" "}
-                {mentionedAgents.map((a) => a.name).join(" → ")}
+              <div className="hint order-hint">
+                <strong>Participants order:</strong> {mentionedAgents.map((a) => a.name).join(" → ")}
               </div>
             )}
+
             {error && <div className="error-banner">{error}</div>}
-            <button
-              type="button"
-              className="button button-primary group-task-panel-button "
-              onClick={start}
-              disabled={busy || !description.trim()}
-            >
-              {busy ? "Starting…" : "Start Group Task"}
-            </button>
+
+            <div className="modal-actions">
+              <button className="button button-primary" onClick={start} disabled={busy || !description.trim()}>
+                {busy ? "Starting…" : "Start Group Task"}
+              </button>
+            </div>
           </div>
         )}
 
