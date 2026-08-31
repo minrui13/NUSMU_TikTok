@@ -112,7 +112,7 @@ The user will be prompted to either approve or deny the agent of the request:
 - Both decisions are recorded in the audit history.
 > Changing an Agent’s permissions does not automatically approve an existing pending Run. 
 > The user must explicitly approve that particular Ru
-
+---
 ## 5. Agent Immune detects suspicious behaviour
 In parallel with the ability check, Agent Immune analyses the request for suspicious patterns.
 It can identify:
@@ -151,7 +151,6 @@ Authorization: [REDACTED]
 This prevents sensitive values from appearing in the conversation history, audit table, logs, screenshots, or frontend responses.
 
 ---
-
 ## 8. Every Important Decision Is Recorded
 
 The **audit history** provides a permanent explanation of what happened.  
@@ -168,6 +167,7 @@ Each event can record:
   
 The audit table allows users to review both successful and unsuccessful actions. This turns the middleware from an invisible security check into visible evidence that the Agent was governed.
 
+---
 ## 9. Alternative Flow: Assemble the Avengers
 Users can add a group task, where they involved multiple agents to do a task.
 The overarching idea: 
