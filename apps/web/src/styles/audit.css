@@ -1,0 +1,57 @@
+.audit-view-tabs {
+  margin-bottom: 10px;
+}
+
+.audit-view-tab.active {
+  color: #6b56db;
+}
+
+.audit-view-tab {
+  font-family: ui-rounded, "SF Pro Rounded", system-ui, sans-serif;
+  letter-spacing: -0.035em;
+}
+
+.audit-log-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  font-family: ui-rounded, "SF Pro Rounded", system-ui, sans-serif;
+  letter-spacing: -0.035em;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.52), rgba(255, 255, 255, 0.52)),
+    radial-gradient(circle at 20% 0, #f1effb, transparent 38%);
+}
+
+.audit-log-table-label.group {
+  padding: 8px 16px;
+  font-weight: 600;
+  background-color: #5646af;
+  color: white;
+  border-bottom: 1px solid #cecdc6;
+}
+
+.audit-log-table-head {
+  padding: 17px 22px;
+  border-bottom: 1px solid #e5e3dc;
+  background: #f3f3f3f0;
+}
+
+.audit-log-table-head.single .audit-log-table-row .audit-log-table-cell {
+  background: #f3f3f3f0;
+}
+
+.audit-log-table-row {
+  display: flex;
+  align-items: center;
+}
+
+.audit-log-table-head .audit-log-table-cell {
+  font-weight: 600;
+  font-size: 15px;
+  padding-top: 13px;
+  padding-bottom: 13px;
+}
+
+.audit-log-table-body .audit-log-table-cell {
+  padding-top: 10px;
+  padding-bottom: 10px;
+}

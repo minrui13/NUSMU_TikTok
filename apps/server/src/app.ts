@@ -11,7 +11,6 @@ import { HttpError } from "./errors.js";
 import { Ability } from "./types/abilities.js";
 import { getKnownSecrets, redactSecrets } from "./utils/redaction.js";
 
-
 import type { AgentService } from "./agent-service.js";
 import type { AppConfig } from "./config.js";
 import type { GroupTaskService } from "./group-task-service.js"; // add import
@@ -217,9 +216,10 @@ export async function createApp(
   // Shows the audit history for a specified Agent
   // Each event records who performed the action, which Agent was affected,
   // whether the policy allowed or denied it, and the reason for the decision.
-  app.get("/api/agents/auditEvents", async () => {
-    return { events: service.getAuditEvents() };
-  });
+  // app.ts
+  app.get("/api/audit-events", async () => ({
+    events: service.getAllAuditEvents(),
+  }));
 
   app.post("/api/runs/:id/approve", async (request) => {
     const { id } = runIdParams.parse(request.params);

@@ -153,12 +153,3 @@ export interface AgentRunner {
   isAvailable(): Promise<boolean>;
 }
 
-export interface CoordinationEvent {
-  agentId: string;
-  sessionId: string | null;
-  action: string;
-  decision: AuditDecision;
-  reason: string | null;
-  risk: Risk | null;
-  prompt: string;
-}

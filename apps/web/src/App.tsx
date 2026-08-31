@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ToastContainer, toast } from "react-toastify";
 
 import { api, ApiError, setAuthToken } from "./api";
-import { AbilitiesTable } from "./components/AbilitiesTable";
 import { FailedMessage } from "./components/messages/FailedMessage";
 import { PendingApprovalMessage } from "./components/messages/PendingApprovalMessage";
 import { AllowedToast } from "./components/toasts/AllowedToast";
@@ -20,6 +19,8 @@ import type {
   ImmuneThreatEvent,
   View,
 } from "./types";
+import { AbilitiesView } from "./components/AbilitiesView";
+import { AuditView } from "./components/audit/AuditView";
 
 const starterPrompts = [
   "Create a small TypeScript CLI that prints a weather summary from sample JSON.",
@@ -431,7 +432,7 @@ export default function App() {
       setError(message);
 
       try {
-        const { events } = await api.auditEvents();
+        const { events } = await api.allAuditEvents();
 
         const latestDeniedEvent = events
           .filter(
@@ -468,7 +469,7 @@ export default function App() {
         const message =
           reason instanceof Error ? reason.message : String(reason);
         setError(message);
-        const { events } = await api.auditEvents();
+        const { events } = await api.allAuditEvents();
         const latestDeniedEvent = events
           .filter((event) => event.decision === "denied")
           .sort((left, right) =>
@@ -963,7 +964,9 @@ export default function App() {
                     <article className="run-blocked">
                       <strong>{"🛡 Run blocked by Agent Immune"}</strong>
                       <span>
-                        {"Execution was stopped automatically because this Run\r"}
+                        {
+                          "Execution was stopped automatically because this Run\r"
+                        }
                         {"exceeded the blocking threshold.\r"}
                       </span>
                     </article>
@@ -996,7 +999,8 @@ export default function App() {
                           </strong>
                         </div>
                         <span className="immune-score">
-                          {immuneEvent.score}{"/100\r"}
+                          {immuneEvent.score}
+                          {"/100\r"}
                         </span>
                         <div className="immune-score-explanation">
                           {/* <div className="immune-score-title">
@@ -1030,13 +1034,19 @@ export default function App() {
                               key={signal.label}
                             >
                               <span>{signal.label}</span>
-                              <strong>{"+"}{signal.score}</strong>
+                              <strong>
+                                {"+"}
+                                {signal.score}
+                              </strong>
                             </div>
                           ))}
 
                           <div className="immune-score-row immune-score-total">
                             <span>{"Final risk"}</span>
-                            <strong>{immuneEvent.score}{"/100"}</strong>
+                            <strong>
+                              {immuneEvent.score}
+                              {"/100"}
+                            </strong>
                           </div>
                         </div>
                       </div>
@@ -1083,7 +1093,9 @@ export default function App() {
 
                       {immuneEvent.decision === "deny" && (
                         <div className="immune-reviewed">
-                          {"🛡 Automatically blocked — no human approval required\r"}
+                          {
+                            "🛡 Automatically blocked — no human approval required\r"
+                          }
                         </div>
                       )}
 
@@ -1152,7 +1164,7 @@ export default function App() {
               </section>
             </>
           ) : view === "abilities" ? (
-            <AbilitiesTable
+            <AbilitiesView
               onSelectAgent={(agentId) => {
                 navigateToView(agentId, "playground");
               }}
@@ -1161,6 +1173,8 @@ export default function App() {
               onUpdate={updateAbilities}
               saving={savingAbilities}
             />
+          ) : view === "audit" ? (
+            <AuditView agents={agents} />
           ) : (
             <div className="no-agent">
               <div className="no-agent-art">{"A"}</div>

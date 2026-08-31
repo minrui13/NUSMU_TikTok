@@ -14,7 +14,7 @@ import { isArkConfigured } from "./config.js";
 import { HttpError, RunCancelledError } from "./errors.js";
 import { JsonStore } from "./store.js";
 import { Ability } from "./types/abilities.js";
-import { AuditEntry } from "./types/audits.js";
+import { AuditEntry, AuditEvent, CoordinationEvent } from "./types/audits.js";
 import { getKnownSecrets, redactSecrets } from "./utils/redaction.js";
 import { WorkspaceManager } from "./workspace.js";
 
@@ -23,7 +23,6 @@ import type {
   Agent,
   AgentRun,
   AgentRunner,
-  CoordinationEvent,
   CreateAgentInput,
   Message,
   UpdateAgentInput,
@@ -150,7 +149,9 @@ export class AgentService {
         (item) => item.agentId !== id,
       );
       database.runs = database.runs.filter((item) => item.agentId !== id);
-      database.immuneThreatEvents = database.immuneThreatEvents.filter((item) => item.agentId !== id);
+      database.immuneThreatEvents = database.immuneThreatEvents.filter(
+        (item) => item.agentId !== id,
+      );
     });
     return { archivedWorkspace };
   }
@@ -191,15 +192,18 @@ export class AgentService {
 
   getImmuneEventForRun(runId: string): ImmuneThreatEvent | null {
     this.getRun(runId);
-    return this.store.snapshot().immuneThreatEvents.find((event) => event.runId === runId) ?? null;
+    return (
+      this.store
+        .snapshot()
+        .immuneThreatEvents.find((event) => event.runId === runId) ?? null
+    );
   }
 
   getImmuneMemories(agentId: string): ImmuneMemory[] {
     this.getAgent(agentId);
     return this.store
       .snapshot()
-      .immuneMemories
-      .filter((memory) => memory.status === "active")
+      .immuneMemories.filter((memory) => memory.status === "active")
       .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
   }
 
@@ -208,7 +212,9 @@ export class AgentService {
     action: "confirm" | "dismiss",
   ): Promise<{ event: ImmuneThreatEvent; memory: ImmuneMemory | null }> {
     return this.store.mutate((database) => {
-      const event = database.immuneThreatEvents.find((item) => item.id === eventId);
+      const event = database.immuneThreatEvents.find(
+        (item) => item.id === eventId,
+      );
       if (!event) throw new HttpError(404, "Immune threat event not found");
       if (event.reviewStatus !== "pending") {
         throw new HttpError(409, "This Immune event has already been reviewed");
@@ -381,10 +387,11 @@ export class AgentService {
   }
 
   // Get all Audit Events of the specified agent
-  getAuditEvents() {
+  getAllAuditEvents(): AuditEvent[] {
     return this.store
       .snapshot()
-      .auditEvents.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      .auditEvents.slice()
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
 
   async systemInfo(): Promise<Record<string, unknown>> {
@@ -432,14 +439,18 @@ export class AgentService {
         await this.store.mutate((database) => {
           database.immuneThreatEvents.push(event);
           for (const memoryId of assessment.matchedMemoryIds) {
-            const memory = database.immuneMemories.find((item) => item.id === memoryId);
+            const memory = database.immuneMemories.find(
+              (item) => item.id === memoryId,
+            );
             if (memory) {
               memory.detections += 1;
               memory.updatedAt = completedAt;
             }
           }
           const storedRun = database.runs.find((item) => item.id === run.id);
-          const agent = database.agents.find((item) => item.id === agentAtStart.id);
+          const agent = database.agents.find(
+            (item) => item.id === agentAtStart.id,
+          );
           if (storedRun) {
             storedRun.status = "failed";
             storedRun.error = `Agent Immune ${assessment.decision === "deny" ? "blocked" : "held"} this Run (risk ${assessment.score}/100).`;

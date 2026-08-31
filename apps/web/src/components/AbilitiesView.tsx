@@ -11,12 +11,10 @@ import {
 } from "@mui/material";
 import { makeStyles } from "@mui/styles";
 
-import { Ability } from "../types/abilities";
-
-import Loading from "./Loading";
-
-import type { Agent } from "../types";
 import "../styles/abilities.css";
+import { Ability } from "../types/abilities";
+import { Agent } from "../types";
+import Loading from "./Loading";
 
 interface AbilityMeta {
   key: Ability;
@@ -24,7 +22,7 @@ interface AbilityMeta {
   risk: "low" | "medium" | "high" | "critical";
 }
 
-interface AbilitiesTableProps {
+interface AbilitiesViewProps {
   agents: Agent[];
   abilities: AbilityMeta[];
   onUpdate: (agentId: string, ability: Ability, next: boolean) => void;
@@ -32,7 +30,7 @@ interface AbilitiesTableProps {
   onSelectAgent: (agentId: string) => void;
 }
 
-function riskColour(risk: AbilityMeta["risk"]) {
+export function riskColour(risk: AbilityMeta["risk"]) {
   switch (risk) {
     case "low":
       return "rgb(46, 125, 50)";
@@ -64,13 +62,13 @@ const useStyles = makeStyles(() => ({
   },
 }));
 
-export function AbilitiesTable({
+export function AbilitiesView({
   agents,
   abilities,
   onUpdate,
   saving,
   onSelectAgent,
-}: AbilitiesTableProps) {
+}: AbilitiesViewProps) {
   const classes = useStyles();
   const sortedAgents = [...agents].sort((left, right) =>
     left.name.localeCompare(right.name),
