@@ -25,6 +25,7 @@ import type {
 
 import { AbilitiesView } from "./components/AbilitiesView";
 import { AuditView } from "./components/audit/AuditView";
+import Dashboard from "./pages/Dashboard";
 
 const starterPrompts = [
   "Create a small TypeScript CLI that prints a weather summary from sample JSON.",
@@ -707,12 +708,12 @@ export default function App() {
               {"Audit Log\r"}
             </span>
             <span
-              className={`${view === "admin" ? "view-clicked" : ""}`}
+              className={`${view === "dashboard" ? "view-clicked" : ""}`}
               onClick={() => {
-                navigateToView(null, "admin");
+                navigateToView(null, "dashboard");
               }}
             >
-              {"Admin Center"}
+              {"Dashboard\r"}
             </span>
           </nav>
           <div className="sidebar-label">
@@ -1223,6 +1224,8 @@ export default function App() {
         
           ) : view === "audit" ? (
             <AuditView agents={agents} />
+          ) : view === "dashboard" ? (
+            <Dashboard />
           ) : (
             <div className="no-agent">
               <div className="no-agent-art">{"A"}</div>

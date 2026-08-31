@@ -153,8 +153,7 @@ export interface TrustSummaryItem {
   familyApprovals: number;
   familyDenials: number;
 }
-
-export type View = "playground" | "abilities" | "audit" | "approvals" | "admin";
+export type View = "playground" | "abilities" | "audit" | "approvals" | "dashboard" | "admin";
 
 export type ToastItem =
   | { kind: "deny"; event: AuditEvent; agentName: string }
