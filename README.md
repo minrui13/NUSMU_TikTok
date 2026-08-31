@@ -508,10 +508,15 @@ The key design principles are:
 # Architecture
 
 # Demo Steps
+* Goh Min Rui [@minrui13](https://github.com/minrui13)
+* Su Myat Myat Htay [@sumyatmyathtay](https://github.com/SuMyatMyatHtay)
+* Marcus Yeong Mun Hong [@mxrcxsz12](https://github.com/Mxrcxsz)
+* Tham Jodena [@j0-oj](https://github.com/j0-oj)
 ## Abilities and Audit
 ## Immunity System
 ## Redacted
-## Group Task
+## Group Task by Marcus Yeong Mun Hong [@mxrcxsz12](https://github.com/Mxrcxsz)
+Built a group-chat style middleware where a user writes a task and @mentions which Agents to include. A GroupTaskCoordinator round-robins turns between them in mention order, feeding each Agent the full shared conversation history so they build on each other's turns, until one signals [TASK COMPLETE]. Wired into the platform via new /api/group-tasks routes and a UI panel showing a live turn feed. Tested with a stubbed runner (zero-token unit tests) covering the normal countdown-to-completion case and a stuck/duplicate-turn failure case.  
 1. Click 'Group Task' on the sidebar
 <img width="960" height="500" alt="image" src="https://github.com/user-attachments/assets/7774db4f-2a3b-4c72-84b0-e3c476a0f6a6" />
 
@@ -524,6 +529,8 @@ Once the group task status becomes "completed", the group task is done.
 
 > The individual activity of each agent can be viewed in their relative playground view.
 <img width="960" height="498" alt="image" src="https://github.com/user-attachments/assets/fb830918-7040-4465-9c7d-62d24af5839e" />
+
+
 
 
 # Limitations
