@@ -59,6 +59,7 @@ export interface AgentRun {
   status: RunStatus;
   prompt: string;
   risk: Risk | null;
+  immuneApproved?: boolean;
   output: string | null;
   error: string | null;
   usage: RunUsage | null;

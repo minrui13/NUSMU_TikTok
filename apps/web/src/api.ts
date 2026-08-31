@@ -10,6 +10,7 @@ import type {
   ImmuneThreatEvent,
   Message,
   SystemInfo,
+  TrustSummaryItem,
 } from "./types";
 
 export class ApiError extends Error {
@@ -103,13 +104,16 @@ export const api = {
       "/api/immune/events/" + eventId + "/review",
       { method: "POST", body: JSON.stringify({ action }) },
     ),
-  approveRun: (id: string, body: { isApprove: boolean }) =>
+  approveRun: (id: string, body: { isApprove: boolean }, approver = "Tom (Administrator)") =>
     request<{ run: AgentRun }>("/api/runs/" + id + "/approve", {
       method: "POST",
+      headers: { "x-user-id": approver },
       body: JSON.stringify(body),
     }),
   pendingApprovals: () =>
     request<{ runs: AgentRun[] }>("/api/runs/pendingApprovals"),
+  trustSummary: () =>
+    request<{ items: TrustSummaryItem[] }>("/api/admin/trust-summary"),
   auditEvents: () =>
     request<{ events: AuditEvent[] }>("/api/agents/auditEvents"),
   abilities: () =>

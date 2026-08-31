@@ -3,6 +3,7 @@ import { ToastContainer, toast } from "react-toastify";
 
 import { api, ApiError, setAuthToken } from "./api";
 import { AbilitiesTable } from "./components/AbilitiesTable";
+import { AdminApprovalCenter } from "./components/AdminApprovalCenter";
 import { FailedMessage } from "./components/messages/FailedMessage";
 import { PendingApprovalMessage } from "./components/messages/PendingApprovalMessage";
 import { AllowedToast } from "./components/toasts/AllowedToast";
@@ -84,6 +85,7 @@ export default function App() {
   const [authInput, setAuthInput] = useState("");
   const [view, setView] = useState<View>("playground");
   const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const [showAdminCenter, setShowAdminCenter] = useState(false);
 
   const seenCompletedRunIds = useRef(new Set<string>());
   const isFirstRunPoll = useRef(true);
@@ -701,6 +703,14 @@ export default function App() {
             >
               {"Audit Log\r"}
             </span>
+            <span
+              className={`${view === "admin" ? "view-clicked" : ""}`}
+              onClick={() => {
+                navigateToView(null, "admin");
+              }}
+            >
+              {"Admin Center"}
+            </span>
           </nav>
           <div className="sidebar-label">
             <span>{"Your Agents"}</span>
@@ -1092,23 +1102,27 @@ export default function App() {
                       {/* REVIEW: human decision is required */}
                       {immuneEvent.reviewStatus === "pending" &&
                         immuneEvent.decision === "review" && (
-                          <div className="immune-actions">
-                            <button
-                              className="button button-primary"
-                              disabled={busy}
-                            >
-                              Approve once
-                            </button>
+                          <div className="immune-review-waiting">
+                            <strong>⚠ Administrator review required</strong>
+
+                            <span>
+                              This Run has been paused. Alice cannot approve her own
+                              sensitive action.
+                            </span>
+
+                            <span>
+                              Waiting for Tom (Administrator) to approve or reject
+                              this request in the Admin Center.
+                            </span>
 
                             <button
-                              className="button button-danger"
-                              onClick={() => void reviewImmuneEvent("confirm")}
-                              disabled={busy}
+                              className="button button-primary"
+                              onClick={() => setShowAdminCenter(true)}
                             >
-                              Confirm threat
+                              Open Admin Center
                             </button>
                           </div>
-                        )}
+                      )}
 
                       {/* DENY: already blocked automatically */}
                       {immuneEvent.decision === "deny" && (
@@ -1193,6 +1207,8 @@ export default function App() {
               onUpdate={updateAbilities}
               saving={savingAbilities}
             />
+          ) : view === "admin" || view === "audit" ? (
+            <AdminApprovalCenter agents={agents} />
           ) : (
             <div className="no-agent">
               <div className="no-agent-art">{"A"}</div>

@@ -234,6 +234,10 @@ export async function createApp(
     return { runs: service.getPendingApprovals() };
   });
 
+  app.get("/api/admin/trust-summary", async () => {
+    return { items: service.getTrustSummary() };
+  });
+
   if (config.nodeEnv === "production") {
     const webRoot = fileURLToPath(new URL("../../web/dist", import.meta.url));
     await app.register(fastifyStatic, {

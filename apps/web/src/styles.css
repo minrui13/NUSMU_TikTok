@@ -1192,3 +1192,47 @@ textarea:focus {
   color: rgb(237, 108, 2);
   font-weight: 500;
 }
+
+/* Admin Approval Center / Adaptive Trust dashboard */
+.admin-center { padding: 28px; overflow:auto; height:100%; display:grid; gap:18px; }
+.admin-hero { display:flex; justify-content:space-between; gap:24px; align-items:flex-start; }
+.admin-hero h1 { margin:5px 0 8px; }
+.admin-hero p { margin:0; max-width:760px; color:var(--muted); }
+.admin-identity { border:1px solid var(--border); border-radius:14px; padding:12px 16px; display:grid; min-width:170px; background:var(--surface); }
+.admin-identity span,.admin-identity small { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.08em; }
+.admin-kpis { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; }
+.admin-kpis > div { border:1px solid var(--border); background:var(--surface); border-radius:14px; padding:14px; display:grid; gap:5px; }
+.admin-kpis span { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.06em; }
+.admin-kpis strong { font-size:24px; }
+.admin-panel { border:1px solid var(--border); background:var(--surface); border-radius:16px; padding:18px; }
+.admin-panel-head { display:flex; align-items:center; justify-content:space-between; gap:14px; margin-bottom:14px; }
+.admin-panel-head h2 { margin:4px 0 0; }
+.admin-note { color:var(--muted); font-size:12px; }
+.admin-empty { border:1px dashed var(--border); border-radius:12px; padding:22px; color:var(--muted); text-align:center; }
+.approval-list { display:grid; gap:10px; }
+.approval-card { border:1px solid rgba(210,145,45,.35); background:rgba(210,145,45,.05); border-radius:14px; padding:15px; }
+.approval-card-head,.trust-card-head,.trust-score-row { display:flex; justify-content:space-between; gap:12px; align-items:center; }
+.approval-card-head > div,.trust-card-head > div { display:grid; gap:3px; }
+.approval-card-head span,.trust-card-head span { color:var(--muted); font-size:12px; }
+.approval-risk { text-transform:uppercase; font-weight:700; }
+.approval-prompt { margin:12px 0 7px; font-weight:600; }
+.approval-reason { color:var(--muted); font-size:12px; margin:0 0 12px; }
+.approval-actions { display:flex; gap:8px; flex-wrap:wrap; }
+.trust-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+.trust-card { border:1px solid var(--border); border-radius:14px; padding:14px; display:grid; gap:11px; }
+.trust-state { border-radius:999px; padding:4px 8px; font-size:10px !important; font-weight:700; text-transform:uppercase; }
+.trust-good { background:rgba(61,153,92,.12); color:#64b87e !important; }
+.trust-bad { background:rgba(210,71,71,.12); color:#e27474 !important; }
+.trust-learning { background:rgba(210,145,45,.12); color:#dba453 !important; }
+.trust-score-row { border-top:1px solid var(--border); border-bottom:1px solid var(--border); padding:8px 0; }
+.trust-evidence { display:grid; gap:3px; color:var(--muted); font-size:11px; }
+.trust-card ul { margin:0 0 0 18px; padding:0; color:var(--muted); font-size:11px; }
+.audit-table-wrap { overflow:auto; }
+.audit-table { width:100%; border-collapse:collapse; font-size:12px; }
+.audit-table th,.audit-table td { text-align:left; padding:10px 8px; border-bottom:1px solid var(--border); vertical-align:top; }
+.audit-table th { color:var(--muted); font-size:10px; text-transform:uppercase; letter-spacing:.06em; }
+.audit-decision { border-radius:999px; padding:3px 7px; text-transform:uppercase; font-size:9px; font-weight:700; white-space:nowrap; }
+.audit-allowed { background:rgba(61,153,92,.12); }
+.audit-denied { background:rgba(210,71,71,.12); }
+.audit-pending_approval { background:rgba(210,145,45,.12); }
+@media (max-width: 1000px) { .admin-kpis { grid-template-columns:repeat(2,1fr); } .trust-grid { grid-template-columns:1fr; } }

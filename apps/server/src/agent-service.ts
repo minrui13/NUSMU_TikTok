@@ -155,7 +155,9 @@ export class AgentService {
         (item) => item.agentId !== id,
       );
       database.runs = database.runs.filter((item) => item.agentId !== id);
-      database.immuneThreatEvents = database.immuneThreatEvents.filter((item) => item.agentId !== id);
+      database.immuneThreatEvents = database.immuneThreatEvents.filter(
+        (item) => item.agentId !== id,
+      );
     });
     return { archivedWorkspace };
   }
@@ -196,15 +198,18 @@ export class AgentService {
 
   getImmuneEventForRun(runId: string): ImmuneThreatEvent | null {
     this.getRun(runId);
-    return this.store.snapshot().immuneThreatEvents.find((event) => event.runId === runId) ?? null;
+    return (
+      this.store
+        .snapshot()
+        .immuneThreatEvents.find((event) => event.runId === runId) ?? null
+    );
   }
 
   getImmuneMemories(agentId: string): ImmuneMemory[] {
     this.getAgent(agentId);
     return this.store
       .snapshot()
-      .immuneMemories
-      .filter((memory) => memory.status === "active")
+      .immuneMemories.filter((memory) => memory.status === "active")
       .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
   }
 
@@ -213,7 +218,9 @@ export class AgentService {
     action: "confirm" | "dismiss",
   ): Promise<{ event: ImmuneThreatEvent; memory: ImmuneMemory | null }> {
     return this.store.mutate((database) => {
-      const event = database.immuneThreatEvents.find((item) => item.id === eventId);
+      const event = database.immuneThreatEvents.find(
+        (item) => item.id === eventId,
+      );
       if (!event) throw new HttpError(404, "Immune threat event not found");
       if (event.reviewStatus !== "pending") {
         throw new HttpError(409, "This Immune event has already been reviewed");
@@ -249,6 +256,7 @@ export class AgentService {
       status: "queued",
       risk: null,
       prompt,
+      immuneApproved: false,
       output: null,
       error: null,
       usage: null,
@@ -303,7 +311,7 @@ export class AgentService {
         auditEvents: snapshotForTrust.auditEvents,
       });
 
-      if (trust.adjustment <= -20) {
+      if (trust.rolePattern === "allow") {
         return {
           ...result,
           decision: "allowed" as const,
@@ -425,6 +433,26 @@ export class AgentService {
       .auditEvents.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
 
+  getTrustSummary() {
+    const snapshot = this.store.snapshot();
+    return snapshot.agents
+      .map((agent) => {
+        const trust = calculateAdaptiveTrust({
+          agent,
+          ability: "canAccessSecrets",
+          agents: snapshot.agents,
+          auditEvents: snapshot.auditEvents,
+        });
+        return {
+          agentId: agent.id,
+          agentName: agent.name,
+          role: agent.role,
+          ...trust,
+        };
+      })
+      .sort((left, right) => left.agentName.localeCompare(right.agentName));
+  }
+
   async systemInfo(): Promise<Record<string, unknown>> {
     return {
       arkConfigured: isArkConfigured(this.config),
@@ -457,52 +485,89 @@ export class AgentService {
         throw new RunCancelledError();
       }
 
-      const immuneSnapshot = this.store.snapshot();
-      const memories = immuneSnapshot.immuneMemories;
-      const requiredAbilities = classifyAction(run.prompt);
-      const secretTrust = requiredAbilities.includes("canAccessSecrets")
-        ? calculateAdaptiveTrust({
-            agent: agentAtStart,
-            ability: "canAccessSecrets",
-            agents: immuneSnapshot.agents,
-            auditEvents: immuneSnapshot.auditEvents,
-          })
-        : null;
-      const assessment = this.immune.assess(run.prompt, memories, {
-        roleTrustAdjustment: secretTrust?.adjustment ?? 0,
-        roleTrustReasons: secretTrust?.reasons ?? [],
-      });
-      if (assessment.decision !== "allow") {
-        const event = this.immune.createThreatEvent({
-          agentId: agentAtStart.id,
-          runId: run.id,
-          prompt: run.prompt,
-          assessment,
+      const currentRun = this.getRun(run.id);
+      if (!currentRun.immuneApproved) {
+        const immuneSnapshot = this.store.snapshot();
+        const memories = immuneSnapshot.immuneMemories;
+        const requiredAbilities = classifyAction(run.prompt);
+        const secretTrust = requiredAbilities.includes("canAccessSecrets")
+          ? calculateAdaptiveTrust({
+              agent: agentAtStart,
+              ability: "canAccessSecrets",
+              agents: immuneSnapshot.agents,
+              auditEvents: immuneSnapshot.auditEvents,
+            })
+          : null;
+        const assessment = this.immune.assess(run.prompt, memories, {
+          roleTrustAdjustment: secretTrust?.adjustment ?? 0,
+          roleTrustReasons: secretTrust?.reasons ?? [],
         });
-        const completedAt = now();
-        await this.store.mutate((database) => {
-          database.immuneThreatEvents.push(event);
-          for (const memoryId of assessment.matchedMemoryIds) {
-            const memory = database.immuneMemories.find((item) => item.id === memoryId);
-            if (memory) {
-              memory.detections += 1;
-              memory.updatedAt = completedAt;
+        if (assessment.decision !== "allow") {
+          const event = this.immune.createThreatEvent({
+            agentId: agentAtStart.id,
+            runId: run.id,
+            prompt: run.prompt,
+            assessment,
+          });
+
+          const timestamp = now();
+
+          await this.store.mutate((database) => {
+            database.immuneThreatEvents.push(event);
+
+            for (const memoryId of assessment.matchedMemoryIds) {
+              const memory = database.immuneMemories.find(
+                (item) => item.id === memoryId,
+              );
+
+              if (memory) {
+                memory.detections += 1;
+                memory.updatedAt = timestamp;
+              }
             }
-          }
-          const storedRun = database.runs.find((item) => item.id === run.id);
-          const agent = database.agents.find((item) => item.id === agentAtStart.id);
-          if (storedRun) {
-            storedRun.status = "failed";
-            storedRun.error = `Agent Immune ${assessment.decision === "deny" ? "blocked" : "held"} this Run (risk ${assessment.score}/100).`;
-            storedRun.completedAt = completedAt;
-          }
-          if (agent) {
-            agent.status = "ready";
-            agent.lastError = null;
-            agent.updatedAt = completedAt;
-          }
-        });
-        return;
+
+            const storedRun = database.runs.find((item) => item.id === run.id);
+
+            const agent = database.agents.find(
+              (item) => item.id === agentAtStart.id,
+            );
+
+            if (storedRun) {
+              if (assessment.decision === "review") {
+                // Medium-risk Agent Immune decision:
+                // pause the Run and send it to Tom's Admin Approval Center.
+                storedRun.status = "pending_approval";
+                storedRun.risk = "high";
+                storedRun.error =
+                  `Agent Immune requires administrator review ` +
+                  `(risk ${assessment.score}/100).`;
+
+                // The run has NOT finished yet.
+                storedRun.completedAt = null;
+              } else {
+                // High-risk Agent Immune decision:
+                // automatically block the Run.
+                storedRun.status = "failed";
+                storedRun.risk = "critical";
+                storedRun.error =
+                  `Agent Immune automatically blocked this Run ` +
+                  `(risk ${assessment.score}/100).`;
+
+                storedRun.completedAt = timestamp;
+              }
+            }
+
+            if (agent) {
+              // Release the Agent while waiting for Tom,
+              // or after an automatic block.
+              agent.status = "ready";
+              agent.lastError = null;
+              agent.updatedAt = timestamp;
+            }
+          });
+
+          return;
+        }
       }
 
       const result = await this.runner.run({
@@ -701,7 +766,13 @@ export class AgentService {
       }
       storedAgent.status = "busy";
       storedAgent.updatedAt = now();
-      if (storedRun) storedRun.status = "running";
+      if (storedRun) {
+        storedRun.status = "running";
+
+        // Tom approved this specific Run once.
+        // Do not ask Agent Immune for approval again for the same Run.
+        storedRun.immuneApproved = true;
+      }
       return structuredClone(storedAgent);
     });
 
