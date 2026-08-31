@@ -29,16 +29,16 @@ Members:
 # Setup Instructions
 
 ## 1. Clone the repository
-
+In GitBash Terminal
 ```bash
 git clone https://github.com/minrui13/NUSMU_TikTok.git
 cd NUSMU_TikTok
 ```
 
 ## 2. Install dependencies
-
 ```bash
 npm install
+npm install eslint@9.7.0 --save-dev
 ```
 
 ## 3. Configure environment variables
@@ -115,6 +115,7 @@ Without middleware, users may not know:
 * Whether sensitive information appeared in the logs.
 * Which Agent produced a particular result.
 * Whether a group task completed correctly.
+  
 # Our Solution
 The Avengers provides a governance layer for AI Agents that balances capability with control.
 
