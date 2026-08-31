@@ -34,7 +34,12 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
   };
   const response = await fetch(url, {
     ...options,
-    headers,
+    headers: {
+      "Content-Type": "application/json",
+      "x-user-id": "user-demo-001",
+      Authorization: `Bearer ${authToken}`,
+      ...options?.headers,
+    },
   });
   const data = (await response.json().catch(() => ({}))) as T & {
     error?: string;
@@ -93,9 +98,13 @@ export const api = {
     ),
   run: (id: string) => request<{ run: AgentRun }>("/api/runs/" + id),
   immuneEvent: (runId: string) =>
-    request<{ event: ImmuneThreatEvent | null }>("/api/runs/" + runId + "/immune"),
+    request<{ event: ImmuneThreatEvent | null }>(
+      "/api/runs/" + runId + "/immune",
+    ),
   immuneMemories: (agentId: string) =>
-    request<{ memories: ImmuneMemory[] }>("/api/agents/" + agentId + "/immune-memories"),
+    request<{ memories: ImmuneMemory[] }>(
+      "/api/agents/" + agentId + "/immune-memories",
+    ),
   reviewImmuneEvent: (eventId: string, action: "confirm" | "dismiss") =>
     request<{ event: ImmuneThreatEvent; memory: ImmuneMemory | null }>(
       "/api/immune/events/" + eventId + "/review",

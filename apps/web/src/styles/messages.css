@@ -11,3 +11,10 @@
 .message-label.deny {
   color: rgb(237, 108, 2);
 }
+
+.pending-approval-note {
+  margin-bottom: 0px;
+  margin-top: 0px;
+  color: #40413d;
+  font-size: 12px;
+}

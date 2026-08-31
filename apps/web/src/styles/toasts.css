@@ -67,6 +67,13 @@
   margin-bottom: 2px;
 }
 
+.prompt-status-toast-note.pending {
+  margin-bottom: 0px;
+  margin-top: 0px;
+  color: #40413d;
+  font-size: 12px;
+}
+
 .prompt-status-toast-body.deny .toast-reason {
   margin-top: 5px;
   margin-bottom: 5px;

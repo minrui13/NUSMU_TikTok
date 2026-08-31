@@ -38,6 +38,9 @@ export function PendingApprovalToast({
         <p className="action">
           <strong>{"Approval needed"}</strong>
         </p>
+        <div className="prompt-status-toast-note pending">
+          <span>Prompt has {run.risk} risk:</span>
+        </div>
         {run.prompt && (
           <p className="mt-0">
             {run.prompt.slice(0, 80)}

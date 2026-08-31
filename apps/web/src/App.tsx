@@ -961,20 +961,20 @@ export default function App() {
                   )}
                   {immuneDenied && (
                     <article className="run-blocked">
-                      <strong>🛡 Run blocked by Agent Immune</strong>
+                      <strong>{"🛡 Run blocked by Agent Immune"}</strong>
                       <span>
-                        Execution was stopped automatically because this Run
-                        exceeded the blocking threshold.
+                        {"Execution was stopped automatically because this Run\r"}
+                        {"exceeded the blocking threshold.\r"}
                       </span>
                     </article>
                   )}
 
                   {immuneNeedsReview && (
                     <article className="run-blocked">
-                      <strong>⚠ Run held for human review</strong>
+                      <strong>{"⚠ Run held for human review"}</strong>
                       <span>
-                        This Run is suspicious but not severe enough to
-                        auto-block. An operator decision is required.
+                        {"This Run is suspicious but not severe enough to\r"}
+                        {"auto-block. An operator decision is required.\r"}
                       </span>
                     </article>
                   )}
@@ -988,7 +988,7 @@ export default function App() {
                     <article className="immune-card">
                       <div className="immune-card-head">
                         <div>
-                          <span className="eyebrow">Agent Immune</span>
+                          <span className="eyebrow">{"Agent Immune"}</span>
                           <strong>
                             {immuneEvent.learnedMatch
                               ? "Immune Memory matched"
@@ -996,7 +996,7 @@ export default function App() {
                           </strong>
                         </div>
                         <span className="immune-score">
-                          {immuneEvent.score}/100
+                          {immuneEvent.score}{"/100\r"}
                         </span>
                         <div className="immune-score-explanation">
                           {/* <div className="immune-score-title">
@@ -1030,13 +1030,13 @@ export default function App() {
                               key={signal.label}
                             >
                               <span>{signal.label}</span>
-                              <strong>+{signal.score}</strong>
+                              <strong>{"+"}{signal.score}</strong>
                             </div>
                           ))}
 
                           <div className="immune-score-row immune-score-total">
-                            <span>Final risk</span>
-                            <strong>{immuneEvent.score}/100</strong>
+                            <span>{"Final risk"}</span>
+                            <strong>{immuneEvent.score}{"/100"}</strong>
                           </div>
                         </div>
                       </div>
@@ -1054,10 +1054,10 @@ export default function App() {
                       </ul>
                       {immuneEvent.learnedMatch && (
                         <div className="immune-match-box">
-                          <strong>🛡 Immune Memory Match</strong>
+                          <strong>{"🛡 Immune Memory Match"}</strong>
                           <span>
-                            This Run matched a previously confirmed threat
-                            pattern.
+                            {"This Run matched a previously confirmed threat\r"}
+                            {"pattern.\r"}
                           </span>
                         </div>
                       )}
@@ -1068,7 +1068,7 @@ export default function App() {
                               className="button button-primary"
                               disabled={busy}
                             >
-                              Approve once
+                              {"Approve once\r"}
                             </button>
 
                             <button
@@ -1076,14 +1076,14 @@ export default function App() {
                               onClick={() => void reviewImmuneEvent("confirm")}
                               disabled={busy}
                             >
-                              Confirm threat
+                              {"Confirm threat\r"}
                             </button>
                           </div>
                         )}
 
                       {immuneEvent.decision === "deny" && (
                         <div className="immune-reviewed">
-                          🛡 Automatically blocked — no human approval required
+                          {"🛡 Automatically blocked — no human approval required\r"}
                         </div>
                       )}
 
