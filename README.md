@@ -9,17 +9,22 @@ Members:
 1. [SetUp Instructions](#setup-instructions)
 2. [Project Introduction](#project-introduction)
 3. [Middleware problem and rationale](#middleware-problem-and-rationale)
-4. [User Flow](#user-flow)
-5. [Middleware Directions](#middleware-directions)
-6. [Design Summary](#design-summary)
-7. [Architecture](#architecture) 
-8. [Demo Steps](#demo-steps)
+4. [Our Solution](#our-solution)
+5. [User Flow](#user-flow)
+5. [Implemented Middleware](#implemented-middleware)
    - [Abilities and Audit](#abilities-and-audit)
    - [Immunity System](#immunity-system)
-   - [Redacted](#redacted)
+   - [Secret Redaction](#secret-redaction)
    - [Group Task](#group-task)
-9. [Limitations](#limitations)
-10. [Future Implementations](#future-implementations)
+7. [Architecture and Design Summary](#architecture-and-design-summary)
+8. [Architecture](#architecture) 
+9. [Individual Demo Steps](#individual-demo-steps)
+   - [Abilities and Audit](#abilities-and-audit)
+   - [Immunity System](#immunity-system)
+   - [Secret Redaction](#secret-redaction)
+   - [Group Task](#group-task)
+10. [Limitations](#limitations)
+11. [Future Implementations](#future-implementations)
 
 # Setup Instructions
 
@@ -110,11 +115,30 @@ Without middleware, users may not know:
 * Whether sensitive information appeared in the logs.
 * Which Agent produced a particular result.
 * Whether a group task completed correctly.
+# Our Solution
+The Avengers provides a governance layer for AI Agents that balances capability with control.
 
-This is the problem The Avengers addresses:
-We chose to combine identity, per-Agent abilities, risk-based threat detection, human approval, secret redaction, audit logging, and Multi-Agent coordination because no single control is sufficient on its own. Abilities define what an Agent is permitted to do, Agent Immune evaluates how risky the request appears, human approval provides oversight for high-risk actions, redaction protects sensitive information, and audit events make every decision traceable. For Multi-Agent tasks, shared sessions and turn tracking allow users to understand how several Agents collaborated while preserving the same security controls for each Agent.
+Instead of allowing every Agent to act freely, each Agent receives a defined set of abilities. When a user submits a task, the request is evaluated before it reaches the Agent Runtime. The system checks the Agent’s permissions, analyses the request for suspicious behaviour, calculates its risk, and decides whether to allow, deny, automatically block, or hold the Run for human approval.
 
-The key design decision is to enforce these controls at the backend and runtime boundary rather than relying only on frontend restrictions. This ensures that a user or Agent cannot bypass the middleware simply by sending a direct API request.
+The user is kept informed throughout the process. Blocked actions include a clear explanation, high-risk actions require explicit approval, and important decisions are preserved in the audit history. Sensitive values are redacted before they can appear in stored Runs, messages, logs, or the frontend.
+
+The same governance model extends to Multi-Agent tasks. When several Agents collaborate through a shared session, each Agent remains subject to its own abilities and policy checks. The coordinator records the participating Agents, turn order, shared session, and any failures.
+
+User
+    ↓
+Agent or Multi-Agent task
+    ↓
+Identity and ability checks
+    ↓
+Threat detection and risk scoring
+    ↓
+Allow, deny, block, or request approval
+    ↓
+Agent Runtime or GroupTaskCoordinator
+    ↓
+Redacted output and audit evidence
+
+This allows the Avengers to work together without giving every Agent unrestricted access. Each Agent has its own powers, risky actions require oversight, and every important decision leaves a trace.
 
 # User Flow
 
@@ -463,21 +487,119 @@ The group task completes when an Agent produces the `[TASK COMPLETE]` marker, or
 
 In this way, the Avengers can collaborate—but every hero still has a defined power set, every action is governed, and every important event leaves a trace.
 
-# Middleware Directions
-The brief lists five recommended directions in this order. 
-This submission covers four of them with real, integrated implementations:
+# Implemented Middleware
+## Immunity System 
+By Su Myat Myat Htay [@sumyatmyathtay](https://github.com/SuMyatMyatHtay)
+## Secret Redaction 
+By Tham Jodena [@j0-oj](https://github.com/j0-oj)
+### Problem
+Agent-generated content can accidentally contain sensitive information such as API keys, authentication tokens, or endpoint credentials. This information may appear in prompts, Agent responses, error messages, Runtime output, audit records, or API responses.
 
-| Direction (brief order)        | Status       | Codebase locations |
-|--------------------------------|--------------|-------------------------|
-| Identity and Authorization     | Implemented  | `abilities/permissions.ts`, `abilities/policy-checker.ts` |
-| Trace, Audit, and Observability| Implemented  | `types/audits.ts`, `AgentService.recordAudit()` |
-| Layered Agent Architecture     | Documented   | This document + `AgentService` boundaries |
-| Threat Modeling and Safety     | Implemented  | `agent-immune.ts` |
-| Multi-Agent Coordination       | Implemented  | `group-task-coordinator.ts`, `mention-parser.ts`, `group-task-service.ts` |
+If sensitive values are persisted or returned to the frontend, they may be exposed through the conversation history, logs, screenshots, browser tools, or stored JSON data.
+
+### Solution
+
+The Avengers includes a shared, stateless redaction utility located at:
+
+```text
+apps/server/src/utils/redaction.ts
+```
+
+The utility is applied at storage and response boundaries, before Agent-derived or error-related data becomes persisted or externally visible.
+
+It protects configured secrets such as:
+
+```text
+ARK_API_KEY
+APP_AUTH_TOKEN
+```
+
+It also detects common secret-shaped values, including:
+
+```text
+sk-...
+ep-...
+Bearer ...
+```
+
+### How it works
+
+`getKnownSecrets()` reads the current values of configured secret environment variables at call time. This means callers do not need to receive or manually handle the raw secret values.
+
+`redactSecrets()` recursively processes:
+
+* Strings.
+* Arrays.
+* Nested objects.
+
+Known secret values are removed from strings using exact, case-sensitive matching. Generic secret patterns are then removed in a second pass to catch credential-shaped values whose literal secret is not available to the application.
+
+Non-string values such as numbers, booleans, `null`, and `undefined` pass through unchanged.
+
+The function returns a new value rather than mutating the original input. This prevents callers from accidentally changing or exposing the original object through shared references.
+
+Empty or unset environment variables are ignored so that an empty secret cannot accidentally match and remove all output.
+
+### Integration points
+
+Redaction is applied at two main boundaries.
+
+#### Run output and error persistence
+
+In:
+
+```text
+apps/server/src/agent-service.ts
+```
+
+Agent output is redacted before it is written to:
+
+* `AgentRun.output`.
+* Persisted assistant messages.
+* `Agent.lastError`.
+* `AgentRun.error`.
+
+This ensures that raw Agent Runtime output is never written directly to the JSON store.
+
+#### Global API error handling
+
+In:
+
+```text
+apps/server/src/app.ts
+```
+
+The global error handler redacts error messages before they are:
+
+* Returned in API responses.
+* Written to server logs.
+* Included in redacted stack-trace output.
+
+This protects both client-visible errors and server-side logs from accidental credential leakage.
+
+### Result
+
+The redaction layer provides defence in depth by protecting sensitive values at the point where they leave the Runtime or application boundary.
+
+```text
+Agent output or error
+    ↓
+Secret redaction
+    ↓
+JSON storage, API response, or server log
+```
+
+As a result, users can inspect Agent history and audit evidence without exposing configured credentials or common credential-shaped values.
 
 
-# Design Summary
+## Group Task 
+By Marcus Yeong Mun Hong [@mxrcxsz12](https://github.com/Mxrcxsz)
 
+
+# Architecture and Design Summary
+
+
+## Design Summary
 The Avengers uses layered enforcement:
 
 ```text
@@ -505,17 +627,16 @@ The key design principles are:
 * **Traceability:** Single-Agent Runs and Multi-Agent Sessions are linked through IDs.
 * **Defence in depth:** Abilities, threat scoring, approval, redaction, and audit logging work together.
 
-# Architecture
-
 # Demo Steps
-* Goh Min Rui [@minrui13](https://github.com/minrui13)
-* Su Myat Myat Htay [@sumyatmyathtay](https://github.com/SuMyatMyatHtay)
-* Marcus Yeong Mun Hong [@mxrcxsz12](https://github.com/Mxrcxsz)
-* Tham Jodena [@j0-oj](https://github.com/j0-oj)
-## Abilities and Audit
-## Immunity System
-## Redacted
-## Group Task by Marcus Yeong Mun Hong [@mxrcxsz12](https://github.com/Mxrcxsz)
+## Abilities and Audit 
+By Goh Min Rui [@minrui13](https://github.com/minrui13)
+## Immunity System 
+By Su Myat Myat Htay [@sumyatmyathtay](https://github.com/SuMyatMyatHtay)
+## Secret Redaction 
+By Tham Jodena [@j0-oj](https://github.com/j0-oj)
+
+## Group Task 
+By Marcus Yeong Mun Hong [@mxrcxsz12](https://github.com/Mxrcxsz)
 Built a group-chat style middleware where a user writes a task and @mentions which Agents to include. A GroupTaskCoordinator round-robins turns between them in mention order, feeding each Agent the full shared conversation history so they build on each other's turns, until one signals [TASK COMPLETE]. Wired into the platform via new /api/group-tasks routes and a UI panel showing a live turn feed. Tested with a stubbed runner (zero-token unit tests) covering the normal countdown-to-completion case and a stuck/duplicate-turn failure case.  
 1. Click 'Group Task' on the sidebar
 <img width="960" height="500" alt="image" src="https://github.com/user-attachments/assets/7774db4f-2a3b-4c72-84b0-e3c476a0f6a6" />
