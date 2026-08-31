@@ -60,14 +60,6 @@ export function checkAbility(
       reason: `${label} (${risk} risk) requires human approval`,
     };
   }
-  if (!granted && (risk === "high" || risk === "critical")) {
-    return {
-      ability,
-      risk,
-      decision: "pending_approval",
-      reason: `${ability} is not granted and requires one-time human approval`,
-    };
-  }
 
   return {
     ability,

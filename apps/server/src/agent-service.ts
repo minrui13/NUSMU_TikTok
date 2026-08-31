@@ -255,7 +255,7 @@ export class AgentService {
       sessionId,
       status: "queued",
       risk: null,
-      prompt,
+      prompt: safePrompt,
       immuneApproved: false,
       output: null,
       error: null,

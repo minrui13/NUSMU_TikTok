@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ToastContainer, toast } from "react-toastify";
 
 import { api, ApiError, setAuthToken } from "./api";
-import { AbilitiesTable } from "./components/AbilitiesTable";
+// import { AbilitiesTable } from "./components/AbilitiesTable";
 import { AdminApprovalCenter } from "./components/AdminApprovalCenter";
 import { FailedMessage } from "./components/messages/FailedMessage";
 import { PendingApprovalMessage } from "./components/messages/PendingApprovalMessage";
@@ -22,6 +22,7 @@ import type {
   AgentRole,
   View,
 } from "./types";
+
 import { AbilitiesView } from "./components/AbilitiesView";
 import { AuditView } from "./components/audit/AuditView";
 
