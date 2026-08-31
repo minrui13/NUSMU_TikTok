@@ -2,13 +2,40 @@ import { Ability, Risk } from "./types/abilities";
 import { AuditEvent } from "./types/audits";
 
 export type AgentStatus = "ready" | "busy" | "stopped" | "error";
+export type AgentRole =
+  | "frontend_developer"
+  | "backend_developer"
+  | "fullstack_developer"
+  | "marketing"
+  | "admin";
 export type RunStatus =
   | "queued"
   | "running"
   | "completed"
   | "failed"
   | "cancelled"
-  | "pending_approval";
+  | "pending_approval"
+  | "denied";
+export type GroupTaskStatus = "running" | "completed" | "failed";
+
+export interface GroupTaskTurn {
+  id: string;
+  agentId: string;
+  agentName: string;
+  content: string;
+  createdAt: string;
+}
+
+export interface GroupTaskState {
+  id: string;
+  description: string;
+  participants: { id: string; name: string }[];
+  turns: GroupTaskTurn[];
+  status: GroupTaskStatus;
+  error: string | null;
+  createdAt: string;
+  completedAt: string | null;
+}
 
 export interface Agent {
   id: string;
@@ -20,6 +47,7 @@ export interface Agent {
   codexThreadId: string | null;
   lastError: string | null;
   abilities: Record<Ability, boolean>;
+  role: AgentRole;
   createdAt: string;
   updatedAt: string;
 }
@@ -63,10 +91,12 @@ export interface SystemInfo {
 export type ImmuneThreatCategory =
   | "prompt_injection"
   | "credential_access"
+  | "sensitive_resource"
   | "data_exfiltration"
   | "destructive_action"
   | "workspace_escape"
-  | "suspicious_network";
+  | "suspicious_network"
+  | "privilege_escalation";
 
 export interface ImmuneThreatEvent {
   id: string;
@@ -110,7 +140,21 @@ export interface ImmuneMemory {
   createdAt: string;
   updatedAt: string;
 }
-export type View = "playground" | "abilities" | "audit" | "approvals";
+export interface TrustSummaryItem {
+  agentId: string;
+  agentName: string;
+  role: AgentRole;
+  adjustment: number;
+  reasons: string[];
+  personalApprovals: number;
+  personalDenials: number;
+  roleApprovals: number;
+  roleDenials: number;
+  familyApprovals: number;
+  familyDenials: number;
+}
+
+export type View = "playground" | "abilities" | "audit" | "approvals" | "admin";
 
 export type ToastItem =
   | { kind: "deny"; event: AuditEvent; agentName: string }

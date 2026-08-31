@@ -29,6 +29,10 @@ export class JsonStore {
       }
       this.data = {
         ...parsed,
+        agents: parsed.agents.map((agent) => ({
+          ...agent,
+          role: agent.role ?? "frontend_developer",
+        })),
         immuneThreatEvents: Array.isArray(parsed.immuneThreatEvents) ? parsed.immuneThreatEvents : [],
         immuneMemories: Array.isArray(parsed.immuneMemories) ? parsed.immuneMemories : [],
         auditEvents: Array.isArray(parsed.auditEvents)

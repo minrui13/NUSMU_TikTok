@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ToastContainer, toast } from "react-toastify";
 
 import { api, ApiError, setAuthToken } from "./api";
+import { AbilitiesTable } from "./components/AbilitiesTable";
+import { AdminApprovalCenter } from "./components/AdminApprovalCenter";
 import { FailedMessage } from "./components/messages/FailedMessage";
 import { PendingApprovalMessage } from "./components/messages/PendingApprovalMessage";
 import { AllowedToast } from "./components/toasts/AllowedToast";
@@ -17,6 +19,7 @@ import type {
   SystemInfo,
   ToastItem,
   ImmuneThreatEvent,
+  AgentRole,
   View,
 } from "./types";
 import { AbilitiesView } from "./components/AbilitiesView";
@@ -28,9 +31,18 @@ const starterPrompts = [
   "Build a responsive single-page todo app with tests.",
 ];
 
+const ROLE_OPTIONS: Array<{ value: AgentRole; label: string }> = [
+  { value: "frontend_developer", label: "Frontend Developer" },
+  { value: "backend_developer", label: "Backend Developer" },
+  { value: "fullstack_developer", label: "Fullstack Developer" },
+  { value: "marketing", label: "Marketing" },
+  { value: "admin", label: "Administrator" },
+];
+
 const emptyForm = {
   name: "",
   description: "",
+  role: "frontend_developer" as AgentRole,
   instructions:
     "Help me build and test software in this workspace. Keep changes small and explain the result.",
 };
@@ -75,6 +87,7 @@ export default function App() {
   const [authInput, setAuthInput] = useState("");
   const [view, setView] = useState<View>("playground");
   const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const [showAdminCenter, setShowAdminCenter] = useState(false);
 
   const seenCompletedRunIds = useRef(new Set<string>());
   const isFirstRunPoll = useRef(true);
@@ -281,6 +294,7 @@ export default function App() {
       setForm({
         name: selected.name,
         description: selected.description,
+        role: selected.role ?? "frontend_developer",
         instructions: selected.instructions,
       });
     }
@@ -691,6 +705,14 @@ export default function App() {
             >
               {"Audit Log\r"}
             </span>
+            <span
+              className={`${view === "admin" ? "view-clicked" : ""}`}
+              onClick={() => {
+                navigateToView(null, "admin");
+              }}
+            >
+              {"Admin Center"}
+            </span>
           </nav>
           <div className="sidebar-label">
             <span>{"Your Agents"}</span>
@@ -770,6 +792,8 @@ export default function App() {
                   <p>
                     {selected.description ||
                       "A Codex coding Agent in an isolated workspace."}
+                    {" · "}
+                    {ROLE_OPTIONS.find((role) => role.value === selected.role)?.label ?? selected.role}
                   </p>
                 </div>
                 <div className="header-actions">
@@ -832,6 +856,21 @@ export default function App() {
                         }
                         maxLength={500}
                       />
+                    </label>
+                    <label>
+                      Role
+                      <select
+                        value={form.role}
+                        onChange={(event) =>
+                          setForm({ ...form, role: event.target.value as AgentRole })
+                        }
+                      >
+                        {ROLE_OPTIONS.map((role) => (
+                          <option key={role.value} value={role.value}>
+                            {role.label}
+                          </option>
+                        ))}
+                      </select>
                     </label>
                   </div>
                   <label>
@@ -1034,10 +1073,7 @@ export default function App() {
                               key={signal.label}
                             >
                               <span>{signal.label}</span>
-                              <strong>
-                                {"+"}
-                                {signal.score}
-                              </strong>
+                              <strong>{signal.score > 0 ? `+${signal.score}` : signal.score}</strong>
                             </div>
                           ))}
 
@@ -1071,26 +1107,32 @@ export default function App() {
                           </span>
                         </div>
                       )}
+                      {/* REVIEW: human decision is required */}
                       {immuneEvent.reviewStatus === "pending" &&
                         immuneEvent.decision === "review" && (
-                          <div className="immune-actions">
+                          <div className="immune-review-waiting">
+                            <strong>⚠ Administrator review required</strong>
+
+                            <span>
+                              This Run has been paused. Alice cannot approve her own
+                              sensitive action.
+                            </span>
+
+                            <span>
+                              Waiting for Tom (Administrator) to approve or reject
+                              this request in the Admin Center.
+                            </span>
+
                             <button
                               className="button button-primary"
-                              disabled={busy}
+                              onClick={() => setShowAdminCenter(true)}
                             >
-                              {"Approve once\r"}
-                            </button>
-
-                            <button
-                              className="button button-ghost"
-                              onClick={() => void reviewImmuneEvent("confirm")}
-                              disabled={busy}
-                            >
-                              {"Confirm threat\r"}
+                              Open Admin Center
                             </button>
                           </div>
-                        )}
+                      )}
 
+                      {/* DENY: already blocked automatically */}
                       {immuneEvent.decision === "deny" && (
                         <div className="immune-reviewed">
                           {
@@ -1099,13 +1141,15 @@ export default function App() {
                         </div>
                       )}
 
-                      {immuneEvent.reviewStatus !== "pending" && (
-                        <div className="immune-reviewed">
-                          {immuneEvent.reviewStatus === "confirmed"
-                            ? "✓ Threat confirmed and added to Immune Memory"
-                            : "Marked as false positive"}
-                        </div>
-                      )}
+                      {/* Completed human review */}
+                      {immuneEvent.decision === "review" &&
+                        immuneEvent.reviewStatus !== "pending" && (
+                          <div className="immune-reviewed">
+                            {immuneEvent.reviewStatus === "confirmed"
+                              ? "✓ Threat confirmed and added to Immune Memory"
+                              : "✓ Approved by operator"}
+                          </div>
+                        )}
                     </article>
                   )}
 
@@ -1173,6 +1217,9 @@ export default function App() {
               onUpdate={updateAbilities}
               saving={savingAbilities}
             />
+          ) : view === "admin" ? (
+            <AdminApprovalCenter agents={agents} />
+        
           ) : view === "audit" ? (
             <AuditView agents={agents} />
           ) : (
@@ -1245,6 +1292,21 @@ export default function App() {
                   }
                   maxLength={500}
                 />
+              </label>
+              <label>
+                Role
+                <select
+                  value={form.role}
+                  onChange={(event) =>
+                    setForm({ ...form, role: event.target.value as AgentRole })
+                  }
+                >
+                  {ROLE_OPTIONS.map((role) => (
+                    <option key={role.value} value={role.value}>
+                      {role.label}
+                    </option>
+                  ))}
+                </select>
               </label>
               <label>
                 {"Instructions\r"}

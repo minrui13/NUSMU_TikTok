@@ -10,6 +10,7 @@ import {
   overallDecision,
 } from "./abilities/policy-checker.js";
 import { AgentImmuneEngine } from "./agent-immune.js";
+import { calculateAdaptiveTrust } from "./role-trust.js";
 import { isArkConfigured } from "./config.js";
 import { HttpError, RunCancelledError } from "./errors.js";
 import { JsonStore } from "./store.js";
@@ -100,6 +101,7 @@ export class AgentService {
       codexThreadId: null,
       lastError: null,
       abilities: { ...defaultAgentAbilities, ...input.abilities },
+      role: input.role ?? "frontend_developer",
       createdAt: timestamp,
       updatedAt: timestamp,
     };
@@ -130,6 +132,9 @@ export class AgentService {
       }
       if (input.instructions !== undefined) {
         agent.instructions = input.instructions.trim();
+      }
+      if (input.role !== undefined) {
+        agent.role = input.role;
       }
       agent.lastError = null;
       agent.updatedAt = now();
@@ -250,7 +255,8 @@ export class AgentService {
       sessionId,
       status: "queued",
       risk: null,
-      prompt: safePrompt,
+      prompt,
+      immuneApproved: false,
       output: null,
       error: null,
       usage: null,
@@ -289,10 +295,43 @@ export class AgentService {
 
     const requiredAbilities = classifyAction(prompt);
 
-    const results = evaluateAction(
+    const rawResults = evaluateAction(
       requiredAbilities,
       grantedList(agentAtStart.abilities),
     );
+
+    const snapshotForTrust = this.store.snapshot();
+    const results = rawResults.map((result) => {
+      if (result.decision !== "pending_approval") return result;
+
+      const trust = calculateAdaptiveTrust({
+        agent: agentAtStart,
+        ability: result.ability,
+        agents: snapshotForTrust.agents,
+        auditEvents: snapshotForTrust.auditEvents,
+      });
+
+      if (trust.rolePattern === "allow") {
+        return {
+          ...result,
+          decision: "allowed" as const,
+          reason: `Role-Aware Adaptive Trust auto-approved ${result.ability}: ${trust.reasons.join("; ")}`,
+        };
+      }
+
+      if (trust.adjustment >= 45) {
+        return {
+          ...result,
+          decision: "denied" as const,
+          reason: `Role-Aware Adaptive Trust auto-blocked ${result.ability}: ${trust.reasons.join("; ")}`,
+        };
+      }
+
+      return {
+        ...result,
+        reason: `${result.reason}. Adaptive trust: ${trust.reasons.join("; ") || "no prior evidence"}`,
+      };
+    });
 
     for (const result of results) {
       await this.recordAudit({
@@ -395,6 +434,26 @@ export class AgentService {
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
 
+  getTrustSummary() {
+    const snapshot = this.store.snapshot();
+    return snapshot.agents
+      .map((agent) => {
+        const trust = calculateAdaptiveTrust({
+          agent,
+          ability: "canAccessSecrets",
+          agents: snapshot.agents,
+          auditEvents: snapshot.auditEvents,
+        });
+        return {
+          agentId: agent.id,
+          agentName: agent.name,
+          role: agent.role,
+          ...trust,
+        };
+      })
+      .sort((left, right) => left.agentName.localeCompare(right.agentName));
+  }
+
   async systemInfo(): Promise<Record<string, unknown>> {
     return {
       arkConfigured: isArkConfigured(this.config),
@@ -427,43 +486,89 @@ export class AgentService {
         throw new RunCancelledError();
       }
 
-      const memories = this.store.snapshot().immuneMemories;
-      const assessment = this.immune.assess(run.prompt, memories);
-      if (assessment.decision !== "allow") {
-        const event = this.immune.createThreatEvent({
-          agentId: agentAtStart.id,
-          runId: run.id,
-          prompt: redactSecrets(run.prompt, getKnownSecrets()),
-          assessment,
+      const currentRun = this.getRun(run.id);
+      if (!currentRun.immuneApproved) {
+        const immuneSnapshot = this.store.snapshot();
+        const memories = immuneSnapshot.immuneMemories;
+        const requiredAbilities = classifyAction(run.prompt);
+        const secretTrust = requiredAbilities.includes("canAccessSecrets")
+          ? calculateAdaptiveTrust({
+              agent: agentAtStart,
+              ability: "canAccessSecrets",
+              agents: immuneSnapshot.agents,
+              auditEvents: immuneSnapshot.auditEvents,
+            })
+          : null;
+        const assessment = this.immune.assess(run.prompt, memories, {
+          roleTrustAdjustment: secretTrust?.adjustment ?? 0,
+          roleTrustReasons: secretTrust?.reasons ?? [],
         });
-        const completedAt = now();
-        await this.store.mutate((database) => {
-          database.immuneThreatEvents.push(event);
-          for (const memoryId of assessment.matchedMemoryIds) {
-            const memory = database.immuneMemories.find(
-              (item) => item.id === memoryId,
-            );
-            if (memory) {
-              memory.detections += 1;
-              memory.updatedAt = completedAt;
+        if (assessment.decision !== "allow") {
+          const event = this.immune.createThreatEvent({
+            agentId: agentAtStart.id,
+            runId: run.id,
+            prompt: run.prompt,
+            assessment,
+          });
+
+          const timestamp = now();
+
+          await this.store.mutate((database) => {
+            database.immuneThreatEvents.push(event);
+
+            for (const memoryId of assessment.matchedMemoryIds) {
+              const memory = database.immuneMemories.find(
+                (item) => item.id === memoryId,
+              );
+
+              if (memory) {
+                memory.detections += 1;
+                memory.updatedAt = timestamp;
+              }
             }
-          }
-          const storedRun = database.runs.find((item) => item.id === run.id);
-          const agent = database.agents.find(
-            (item) => item.id === agentAtStart.id,
-          );
-          if (storedRun) {
-            storedRun.status = "failed";
-            storedRun.error = `Agent Immune ${assessment.decision === "deny" ? "blocked" : "held"} this Run (risk ${assessment.score}/100).`;
-            storedRun.completedAt = completedAt;
-          }
-          if (agent) {
-            agent.status = "ready";
-            agent.lastError = null;
-            agent.updatedAt = completedAt;
-          }
-        });
-        return;
+
+            const storedRun = database.runs.find((item) => item.id === run.id);
+
+            const agent = database.agents.find(
+              (item) => item.id === agentAtStart.id,
+            );
+
+            if (storedRun) {
+              if (assessment.decision === "review") {
+                // Medium-risk Agent Immune decision:
+                // pause the Run and send it to Tom's Admin Approval Center.
+                storedRun.status = "pending_approval";
+                storedRun.risk = "high";
+                storedRun.error =
+                  `Agent Immune requires administrator review ` +
+                  `(risk ${assessment.score}/100).`;
+
+                // The run has NOT finished yet.
+                storedRun.completedAt = null;
+              } else {
+                // High-risk Agent Immune decision:
+                // automatically block the Run.
+                storedRun.status = "failed";
+                storedRun.risk = "critical";
+                storedRun.error =
+                  `Agent Immune automatically blocked this Run ` +
+                  `(risk ${assessment.score}/100).`;
+
+                storedRun.completedAt = timestamp;
+              }
+            }
+
+            if (agent) {
+              // Release the Agent while waiting for Tom,
+              // or after an automatic block.
+              agent.status = "ready";
+              agent.lastError = null;
+              agent.updatedAt = timestamp;
+            }
+          });
+
+          return;
+        }
       }
 
       const result = await this.runner.run({
@@ -663,7 +768,13 @@ export class AgentService {
       }
       storedAgent.status = "busy";
       storedAgent.updatedAt = now();
-      if (storedRun) storedRun.status = "running";
+      if (storedRun) {
+        storedRun.status = "running";
+
+        // Tom approved this specific Run once.
+        // Do not ask Agent Immune for approval again for the same Run.
+        storedRun.immuneApproved = true;
+      }
       return structuredClone(storedAgent);
     });
 

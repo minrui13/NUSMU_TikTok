@@ -4,11 +4,13 @@ import { GroupTaskState } from "./types/group-task"
 
 import type {
   Agent,
+  AgentRole,
   AgentRun,
   ImmuneMemory,
   ImmuneThreatEvent,
   Message,
   SystemInfo,
+  TrustSummaryItem,
 } from "./types";
 
 export class ApiError extends Error {
@@ -62,6 +64,7 @@ export const api = {
     name: string;
     description: string;
     instructions: string;
+    role: AgentRole;
   }) =>
     request<{ agent: Agent }>("/api/agents", {
       method: "POST",
@@ -69,7 +72,7 @@ export const api = {
     }),
   updateAgent: (
     id: string,
-    body: { name: string; description: string; instructions: string },
+    body: { name: string; description: string; instructions: string; role: AgentRole },
   ) =>
     request<{ agent: Agent }>("/api/agents/" + id, {
       method: "PATCH",
@@ -114,13 +117,18 @@ export const api = {
       "/api/immune/events/" + eventId + "/review",
       { method: "POST", body: JSON.stringify({ action }) },
     ),
-  approveRun: (id: string, body: { isApprove: boolean }) =>
+  approveRun: (id: string, body: { isApprove: boolean }, approver = "Tom (Administrator)") =>
     request<{ run: AgentRun }>("/api/runs/" + id + "/approve", {
       method: "POST",
+      headers: { "x-user-id": approver },
       body: JSON.stringify(body),
     }),
   pendingApprovals: () =>
     request<{ runs: AgentRun[] }>("/api/runs/pendingApprovals"),
+  trustSummary: () =>
+    request<{ items: TrustSummaryItem[] }>("/api/admin/trust-summary"),
+  auditEvents: () =>
+    request<{ events: AuditEvent[] }>("/api/agents/auditEvents"),
   allAuditEvents: () => request<{ events: AuditEvent[] }>("/api/auditEvents"),
   abilities: () =>
     request<{ abilities: Record<Ability, boolean> }>("/api/abilities"),
