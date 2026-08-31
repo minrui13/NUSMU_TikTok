@@ -4,7 +4,14 @@ Members:
 * Su Myat Myat Htay [@sumyatmyathtay](https://github.com/SuMyatMyatHtay)
 * Marcus Yeong Mun Hong [@mxrcxsz12](https://github.com/Mxrcxsz)
 * Tham Jodena [@j0-oj](https://github.com/j0-oj)
-  
+
+## Table of Contents
+1. [SetUp Instructions](#setup-instructions)
+2. [Project Introduction](#project-introduction)
+3. [User Flow](#user-flow)
+4. [Middleware](#middleware)
+5. [](#middleware)
+
 # Setup Instructions
 
 ## 1. Clone the repository
@@ -77,7 +84,7 @@ Our goal is simple:
 
 > Agents may be powerful, but they should not be trusted blindly.
 
-# Problem Statement
+# Middleware problem and rationale
 
 AI Agents can perform complex tasks on behalf of users. However, an Agent may not always behave exactly as the user expects. It may request excessive permissions, attempt to access sensitive resources, expose credentials, perform destructive actions, or communicate with an unsafe external service.
 
@@ -95,9 +102,12 @@ Without middleware, users may not know:
 * Which Agent produced a particular result.
 * Whether a group task completed correctly.
 
-This is the problem The Avengers addresses.
+This is the problem The Avengers addresses:
+We chose to combine identity, per-Agent abilities, risk-based threat detection, human approval, secret redaction, audit logging, and Multi-Agent coordination because no single control is sufficient on its own. Abilities define what an Agent is permitted to do, Agent Immune evaluates how risky the request appears, human approval provides oversight for high-risk actions, redaction protects sensitive information, and audit events make every decision traceable. For Multi-Agent tasks, shared sessions and turn tracking allow users to understand how several Agents collaborated while preserving the same security controls for each Agent.
 
-# Our Solution: Assemble the Avengers
+The key design decision is to enforce these controls at the backend and runtime boundary rather than relying only on frontend restrictions. This ensures that a user or Agent cannot bypass the middleware simply by sending a direct API request.
+
+# User Flow
 
 The Avengers combines identity, Agent abilities, threat detection, human approval, secret redaction, auditability, and Multi-Agent coordination into one governance layer.
 
@@ -444,31 +454,7 @@ The group task completes when an Agent produces the `[TASK COMPLETE]` marker, or
 
 In this way, the Avengers can collaborate—but every hero still has a defined power set, every action is governed, and every important event leaves a trace.
 
-## Middleware Summary
-## Implemented Middleware Summary
-
-| TikTok middleware category          | Our implementation                       | What it does                                                                                                                                                             | User benefit                                                                                                                    |
-| ----------------------------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
-| **Identity and Authorisation**      | **Human and Agent identity**             | Associates actions with the initiating user, the Agent involved, or the system coordinator.                                                                              | Users can see who initiated, approved, or performed an action.                                                                  |
-| **Identity and Authorisation**      | **Per-Agent abilities**                  | Gives each Agent a configurable permission profile, including workspace access, command execution, secret access, network access, and Multi-Agent session participation. | Users can apply least-privilege access and avoid giving every Agent unrestricted capabilities.                                  |
-| **Identity and Authorisation**      | **Backend policy enforcement**           | Checks an Agent’s abilities on the server before allowing a Run to reach the Agent Runtime.                                                                              | Permissions cannot be bypassed simply by ignoring or modifying the frontend.                                                    |
-| **Identity and Authorisation**      | **Human approval workflow**              | Holds high-risk actions for explicit approval before execution.                                                                                                          | Users retain control over risky actions while allowing legitimate work to continue.                                             |
-| **Trace, Audit, and Observability** | **Audit event logging**                  | Records the user, Agent, Run, session, action, risk, decision, reason, prompt, and timestamp.                                                                            | Users can understand what happened and why a decision was made.                                                                 |
-| **Trace, Audit, and Observability** | **Audit history interface**              | Displays allowed, denied, pending, security, and coordination events in the frontend.                                                                                    | Security decisions become visible and reviewable rather than hidden in backend logs.                                            |
-| **Trace, Audit, and Observability** | **Run and session correlation**          | Links events using `userId`, `agentId`, `runId`, and `sessionId`.                                                                                                        | Users can trace an individual Agent Run or reconstruct an entire Multi-Agent task.                                              |
-| **Threat Modelling and Safety**     | **Agent Immune System**                  | Detects suspicious behaviour, including prompt injection, credential access, data exfiltration, workspace escape, destructive actions, and privilege escalation.         | Suspicious requests can be identified before they reach the runtime.                                                            |
-| **Threat Modelling and Safety**     | **Risk-based enforcement**               | Assigns a risk score from 0 to 100 and allows, reviews, or automatically blocks requests based on configured thresholds.                                                 | The system applies stronger controls to more dangerous actions.                                                                 |
-| **Threat Modelling and Safety**     | **Immune Memory**                        | Stores confirmed threat patterns and uses them as additional risk signals when similar requests appear later.                                                            | The system can learn from previous security decisions instead of treating every request as completely new.                      |
-| **Threat Modelling and Safety**     | **Context-aware threat decisions**       | Keeps previous security decisions associated with the relevant Agent, user, or role context.                                                                             | An approval for a legitimate developer task does not automatically authorise the same sensitive action in an unrelated context. |
-| **Threat Modelling and Safety**     | **Secret redaction**                     | Detects configured secrets and common credential formats in prompts, responses, errors, tool output, and audit events before they are stored or displayed.               | API keys, tokens, and other sensitive values are not exposed through the UI, logs, or audit history.                            |
-| **Layered Agent Architecture**      | **Middleware execution boundary**        | Separates the frontend, API, policy layer, Agent Immune checks, approval flow, runtime, and audit storage.                                                               | Each component has a clear responsibility, making the system easier to extend and maintain.                                     |
-| **Multi-Agent Coordination**        | **Shared group sessions**                | Allows users to create a group task by mentioning multiple Agents and assigns them a shared `sessionId`.                                                                 | Multiple Agents can collaborate within one traceable task.                                                                      |
-| **Multi-Agent Coordination**        | **Turn-based coordination**              | Routes turns between participating Agents and provides each Agent with the shared conversation history.                                                                  | Agents can build on one another’s work in a predictable order.                                                                  |
-| **Multi-Agent Coordination**        | **Coordination state and event history** | Stores participating Agents, turn order, outputs, completion status, and session events.                                                                                 | Users can see which Agent acted and how the group task progressed.                                                              |
-| **Multi-Agent Coordination**        | **Coordination failure handling**        | Detects duplicate responses, timeouts, skipped turns, and maximum-turn violations.                                                                                       | Group tasks are prevented from running indefinitely or producing inconsistent results.                                          |
-| **Multi-Agent Coordination**        | **Session participation control**        | Uses the `canJoinSession` ability to control whether an Agent may participate in a shared session.                                                                       | Agents cannot join group tasks unless their participation is explicitly permitted.                                              |
-| **Execution and Data Protection**   | **Persistent security history**          | Stores policy, approval, threat, redaction, and coordination events in the existing JSON data store.                                                                     | Important security decisions remain available after the user navigates away or restarts the application.                        |
-
+                                                                                                       |
 
 # Design Summary
 
@@ -501,14 +487,12 @@ The key design principles are:
 * **Defence in depth:** Abilities, threat scoring, approval, redaction, and audit logging work together.
 
 # Limitations
-
 * The ability catalogue is predefined. Users can manage existing abilities but cannot create arbitrary custom abilities.
 * Prompt classification and threat detection are heuristic and may produce false positives or false negatives.
 * A prompt classifier cannot guarantee that it predicts every action an Agent may perform.
 * Human approval is simplified and does not yet include detailed approval roles, expiry rules, escalation policies, or delegated approval authority.
 * Approval is handled at the Run level rather than through a full enterprise approval workflow.
-* The current identity system is lightweight and does not represent production-grade authentication.
-* Frontend controls are not treated as a security boundary; enforcement occurs in the backend.
+* The current identity system is lightweight and does not represent production-grade authentication. (just have a dummy userId right now)
 * Audit events are stored in a local JSON store and are not immutable, tamper-proof, or designed for high-volume production workloads.
 * The audit table only displays events produced by the implemented middleware and may not capture every internal operation performed by the runtime.
 * Notifications and audit updates use polling, so the interface may have a short delay before showing new events.
