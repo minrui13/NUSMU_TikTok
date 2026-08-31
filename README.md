@@ -12,6 +12,14 @@ Members:
 4. [User Flow](#user-flow)
 5. [Middleware Directions](#middleware-directions)
 6. [Design Summary](#design-summary)
+7. [Architecture](#architecture) 
+8. [Demo Steps](#demo-steps)
+   - [Abilities and Audit](#abilities-and-audit)
+   - [Immunity System](#immunity-system)
+   - [Redacted](#redacted)
+   - [Group Task](#group-task)
+9. [Limitations](#limitations)
+10. [Future Implementations](#future-implementations)
 
 # Setup Instructions
 
