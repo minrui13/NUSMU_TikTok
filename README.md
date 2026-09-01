@@ -1328,7 +1328,7 @@ There should be no approval required for this case.
 
 <img width="960" height="499" alt="image" src="https://github.com/user-attachments/assets/ee6b3686-11a5-4b07-8f7e-1afd52e0e4e4" />
 
-2. Choose 'Approve & continue' or 'Reject' the run 
+2. Choose 'Approve & continue' or 'Reject' 
    
 <img width="960" height="498" alt="image" src="https://github.com/user-attachments/assets/9df6a863-675a-492f-936a-cd1b5a22134f" />
 
