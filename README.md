@@ -20,7 +20,7 @@ Members:
 8. [Demo Steps](#demo-steps)
    - [Abilities and Audit Log Demo](#abilities-and-audit-log-demo)
    - [Immunity System Demo](#immunity-system-demo)
-   - [Secret Redaction Demo](#secret-redaction-demo)
+   - [Secret Redaction and Dashboard Demo](#secret-redaction-and-dashboard-demo)
    - [Group Task Demo](#group-task-demo)
 9. [Limitations](#limitations)
 10. [Future Implementations](#future-implementations)
@@ -1319,13 +1319,12 @@ AUTO BLOCK
 The run should stop before the Agent Runtime executes.
 There should be no approval required for this case.
 
-## Secret Redaction Demo
+## Secret Redaction and Dashboard Demo
 By Tham Jodena [@j0-oj](https://github.com/j0-oj)
+### Secret Redaction
 
 > Restart the server after changing `.env` so the new configuration is loaded.
 > For testing, use temporary dummy values rather than real credentials.
-
-### Redacted
 
 1. Configure temporary test values in `.env`:
 
@@ -1371,7 +1370,14 @@ It should also be displayed as:
 
 > The Agent may refuse to reveal environment variables or real credentials. That is expected and is separate from redaction. The redaction test uses harmless dummy values to demonstrate that sensitive-looking content is replaced before it is stored, logged, returned by the API, or displayed.
 
+### Dashboard 
+An operator-level view of agent activity, run outcomes, and safety signals - computed from existing platform data.
 
+<img width="960" height="502" alt="image" src="https://github.com/user-attachments/assets/493665b3-5aa4-4d00-9d6a-de01c7984b7e" />
+
+<img width="960" height="500" alt="image" src="https://github.com/user-attachments/assets/c8f60d1b-1d67-4a6f-bfb8-16a993375964" />
+
+<img width="960" height="499" alt="image" src="https://github.com/user-attachments/assets/8aad2f48-ee0d-46e0-bf64-8449611a2f0d" />
 
 ## Group Task Demo
 By Marcus Yeong Mun Hong [@mxrcxsz12](https://github.com/Mxrcxsz)
