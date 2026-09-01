@@ -38,6 +38,9 @@ cd NUSMU_TikTok
 ```bash
 npm install
 npm install eslint@9.7.0 --save-dev
+npm install @mui/material @emotion/react @emotion/styled
+npm install @mui/icons-material
+npm i react-toastify
 ```
 
 ## 3. Configure environment variables
