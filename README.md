@@ -1385,7 +1385,7 @@ It should also be displayed as:
 > The Agent may refuse to reveal environment variables or real credentials. That is expected and is separate from redaction. The redaction test uses harmless dummy values to demonstrate that sensitive-looking content is replaced before it is stored, logged, returned by the API, or displayed.
 
 ### Dashboard 
-An operator-level view of agent activity, run outcomes, and safety signals - computed from existing platform data.
+1. Navigate to 'Dashboard' from the sidebar
 
 <img width="960" height="502" alt="image" src="https://github.com/user-attachments/assets/493665b3-5aa4-4d00-9d6a-de01c7984b7e" />
 
