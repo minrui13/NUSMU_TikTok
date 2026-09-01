@@ -41,6 +41,7 @@ npm install eslint@9.7.0 --save-dev
 npm install @mui/material @emotion/react @emotion/styled
 npm install @mui/icons-material
 npm i react-toastify
+npm i recharts
 ```
 
 ## 3. Configure environment variables
