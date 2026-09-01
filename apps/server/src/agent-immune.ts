@@ -90,7 +90,11 @@ export interface ImmuneAssessment {
 }
 
 export class AgentImmuneEngine {
-  assess(prompt: string, memories: ImmuneMemory[]): ImmuneAssessment {
+  assess(
+    prompt: string,
+    memories: ImmuneMemory[],
+    context: { roleTrustAdjustment?: number; roleTrustReasons?: string[] } = {},
+  ): ImmuneAssessment {
     const categories = new Set<ImmuneThreatCategory>();
     const reasons: string[] = [];
     const scoreBreakdown: { label: string; score: number }[] = [];
@@ -381,13 +385,35 @@ export class AgentImmuneEngine {
       });
     }
 
-    const score = Math.min(100, baseScore + memoryAdjustment);
+    const hasNonDelegableThreat =
+      exfiltration || workspaceEscape || destructive || privilegeEscalation;
+    const requestedRoleAdjustment = context.roleTrustAdjustment ?? 0;
+    const roleTrustAdjustment =
+      requestedRoleAdjustment < 0 && hasNonDelegableThreat
+        ? 0
+        : requestedRoleAdjustment;
+
+    if (roleTrustAdjustment !== 0) {
+      scoreBreakdown.push({
+        label: "Role-aware adaptive trust",
+        score: roleTrustAdjustment,
+      });
+      reasons.push(
+        ...(context.roleTrustReasons ?? []).map((reason) => `Adaptive trust: ${reason}`),
+      );
+    } else if (requestedRoleAdjustment < 0 && hasNonDelegableThreat) {
+      reasons.push(
+        "Role trust cannot reduce risk for exfiltration, workspace escape, destructive actions, or privilege escalation.",
+      );
+    }
+
+    const score = Math.max(0, Math.min(100, baseScore + memoryAdjustment + roleTrustAdjustment));
 
     // ---------------------------------------------------------
     // DECISION BANDS
     // ---------------------------------------------------------
 
-    const decision = score >= 70 ? "deny" : score >= 50 ? "review" : "allow";
+    const decision = score >= 70 ? "deny" : score >= 40 ? "review" : "allow";
 
     return {
       score,

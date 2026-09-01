@@ -60,13 +60,12 @@ export function checkAbility(
       reason: `${label} (${risk} risk) requires human approval`,
     };
   }
+
   return {
     ability,
     risk,
     decision: "denied",
-    reason: granted
-      ? `${label} (${risk} risk) is not permitted`
-      : `${label} is not granted to this Agent`,
+    reason: `${ability} is not granted to this Agent`,
   };
 }
 

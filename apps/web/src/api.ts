@@ -1,14 +1,17 @@
 import { Ability, AbilityBody } from "./types/abilities";
 import { AuditEvent } from "./types/audits";
 
+import type { DashboardSnapshot } from "./components/dashboard/types";
 import type {
   Agent,
+  AgentRole,
   AgentRun,
   GroupTaskState,
   ImmuneMemory,
   ImmuneThreatEvent,
   Message,
   SystemInfo,
+  TrustSummaryItem,
 } from "./types";
 
 export class ApiError extends Error {
@@ -35,9 +38,9 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
   const response = await fetch(url, {
     ...options,
     headers: {
-      "Content-Type": "application/json",
+      ...(options?.body ? { "Content-Type": "application/json" } : {}),
       "x-user-id": "user-demo-001",
-      Authorization: `Bearer ${authToken}`,
+      ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
       ...options?.headers,
     },
   });
@@ -62,6 +65,7 @@ export const api = {
     name: string;
     description: string;
     instructions: string;
+    role: AgentRole;
   }) =>
     request<{ agent: Agent }>("/api/agents", {
       method: "POST",
@@ -69,7 +73,12 @@ export const api = {
     }),
   updateAgent: (
     id: string,
-    body: { name: string; description: string; instructions: string },
+    body: {
+      name: string;
+      description: string;
+      instructions: string;
+      role: AgentRole;
+    },
   ) =>
     request<{ agent: Agent }>("/api/agents/" + id, {
       method: "PATCH",
@@ -114,13 +123,22 @@ export const api = {
       "/api/immune/events/" + eventId + "/review",
       { method: "POST", body: JSON.stringify({ action }) },
     ),
-  approveRun: (id: string, body: { isApprove: boolean }) =>
+  approveRun: (
+    id: string,
+    body: { isApprove: boolean },
+    approver = "Tom (Administrator)",
+  ) =>
     request<{ run: AgentRun }>("/api/runs/" + id + "/approve", {
       method: "POST",
+      headers: { "x-user-id": approver },
       body: JSON.stringify(body),
     }),
   pendingApprovals: () =>
     request<{ runs: AgentRun[] }>("/api/runs/pendingApprovals"),
+  trustSummary: () =>
+    request<{ items: TrustSummaryItem[] }>("/api/admin/trust-summary"),
+  auditEvents: () =>
+    request<{ events: AuditEvent[] }>("/api/agents/auditEvents"),
   allAuditEvents: () => request<{ events: AuditEvent[] }>("/api/auditEvents"),
   abilities: () =>
     request<{ abilities: Record<Ability, boolean> }>("/api/abilities"),
@@ -136,4 +154,5 @@ export const api = {
     }),
   groupTask: (id: string) =>
     request<{ task: GroupTaskState }>("/api/group-tasks/" + id),
+  dashboard: () => request<DashboardSnapshot>("/api/dashboard"),
 };

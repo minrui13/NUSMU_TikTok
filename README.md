@@ -58,7 +58,6 @@ ARK_MODEL=ep-replace-with-your-endpoint-id
 ARK_BASE_URL=https://ark.cn-beijing.volces.com/api/v3
 ```
 
-> Never commit real API keys, passwords, bearer tokens, or other secrets to GitHub.
 
 ## 4. Start Docker Desktop
 
@@ -78,11 +77,11 @@ http://localhost:3000
 
 # Project Introduction
 
-## The Avengers
+## AvengerAI
 
-**The Avengers** is a governance and coordination middleware layer for the Agent Launchpad.
+**AvengerAI** is a governance and coordination middleware layer for the Agent Launchpad.
 
-The platform allows multiple specialised AI Agents to read files, write code, run commands, access external services, and collaborate with one another. The Avengers adds the security and coordination controls needed to make these capabilities safer, more accountable, and easier to understand.
+The platform allows multiple specialised AI Agents to read files, write code, run commands, access external services, and collaborate with one another. AvengerAI adds the security and coordination controls needed to make these capabilities safer, more accountable, and easier to understand.
 
 Each Agent has its own:
 
@@ -116,7 +115,7 @@ Without middleware, users may not know:
 * Whether a group task completed correctly.
   
 # Our Solution
-The Avengers provides a governance layer for AI Agents that balances capability with control.
+AvengerAI provides a governance layer for AI Agents that balances capability with control.
 
 Instead of allowing every Agent to act freely, each Agent receives a defined set of abilities. When a user submits a task, the request is evaluated before it reaches the Agent Runtime. The system checks the Agent’s permissions, analyses the request for suspicious behaviour, calculates its risk, and decides whether to allow, deny, automatically block, or hold the Run for human approval.
 
@@ -142,7 +141,7 @@ This allows the Avengers to work together without giving every Agent unrestricte
 
 # User Flow
 
-The Avengers combines identity, Agent abilities, threat detection, human approval, secret redaction, auditability, and Multi-Agent coordination into one governance layer.
+The AvengerAI combines identity, Agent abilities, threat detection, human approval, secret redaction, auditability, and Multi-Agent coordination into one governance layer.
 
 The overall flow is:
 
@@ -198,7 +197,7 @@ For example:
 Run the project tests and fix any failures.
 ```
 
-Before the task reaches the Agent Runtime, The Avengers evaluates it:
+Before the task reaches the Agent Runtime, AvengerAI evaluates it:
 
 ```text
 User prompt
@@ -485,7 +484,7 @@ Turn 3 → Testing Agent
 
 The group task completes when an Agent produces the `[TASK COMPLETE]` marker, or fails when the coordinator detects a timeout, duplicate response, skipped turn, or maximum-turn limit.
 
-In this way, the Avengers can collaborate—but every hero still has a defined power set, every action is governed, and every important event leaves a trace.
+In this way, the AvengerAI can collaborate—but every hero still has a defined power set, every action is governed, and every important event leaves a trace.
 
 # Implemented Middleware
 
@@ -498,7 +497,7 @@ A simple permission switch is also insufficient on its own. Users need to unders
 
 ### Solution
 
-The Avengers introduces a unified Agent governance middleware that combines:
+The AvengerAI introduces a unified Agent governance middleware that combines:
 
 * Per-Agent abilities.
 * Risk-based policy decisions.
@@ -740,264 +739,177 @@ Together, these components turn Agent permissions from a frontend setting into a
 
 ## Immunity System 
 By Su Myat Myat Htay [@sumyatmyathtay](https://github.com/SuMyatMyatHtay)
+
 ### Problem
 
-AI Agents can be manipulated into performing unsafe actions through malicious, ambiguous, or carefully worded prompts. These prompts may attempt to bypass instructions, access credentials, transmit sensitive information, escape the workspace, destroy files, or obtain elevated privileges.
+An Agent may receive a harmless-looking prompt that contains hidden security risks. For example, a user may ask an Agent to access credentials, bypass the sandbox, send sensitive data to an external website, or operate outside its assigned workspace.
 
-A simple permission check is not always enough. An Agent may have a particular ability enabled, but the specific request may still be suspicious or dangerous. The platform therefore needs a separate threat-detection layer that evaluates the request before it reaches the Agent Runtime.
+A simple permission check is not always enough. An Agent may technically have an ability, but the requested action could still be suspicious or dangerous. Users therefore need an additional safety layer that can identify risky behaviour before the request reaches the Agent Runtime.
 
 ### Solution
 
-The Avengers introduces an **Agent Immune System** middleware that analyses each prompt before execution.
+The Avengers includes an **Agent Immune System** middleware that analyses every Agent prompt before execution.
 
-The Immune System:
-
-* Detects suspicious threat patterns.
-* Groups threats into meaningful categories.
-* Assigns weighted risk signals.
-* Produces an overall score between 0 and 100.
-* Allows low-risk requests.
-* Holds suspicious requests for human review.
-* Automatically blocks high-risk requests.
-* Learns from previously confirmed threats through Immune Memory.
-
-The main implementation is located in:
+It detects suspicious patterns, calculates an explainable risk score, and assigns one of three decisions:
 
 ```text
-apps/server/src/agent-immune.ts
+ALLOW  → The request may continue.
+REVIEW → Human confirmation is required.
+DENY   → The request is blocked before execution.
 ```
 
+This gives the platform a security layer that behaves like an immune system: it identifies known threats, learns from confirmed incidents, and increases its response to similar future requests.
+
 ### How it works
+
+The Immune System runs before the Agent Runtime:
 
 ```text
 User prompt
     ↓
-Agent Immune assessment
+Threat pattern detection
     ↓
-Threat category detection
+Risk signal calculation
     ↓
-Weighted score calculation
-    ↓
-Immune Memory comparison
+Immune Memory matching
     ↓
 Final risk score
     ↓
 Allow, review, or deny
 ```
 
-The Immune System runs before the Agent Runtime. This ensures that suspicious requests can be stopped before the Agent receives an opportunity to read files, execute commands, access secrets, or use external services.
+The system analyses the prompt using configured patterns. Each detected signal contributes to the base risk score. The score is capped before Immune Memory is applied, and the final score is limited to 100.
+
+The current decision bands are:
+
+```text
+0–49    → Allow
+50–69   → Human review
+70–100  → Automatically deny
+```
 
 ### Threat categories
 
-The system currently detects the following categories:
+The Immune System currently detects:
 
-| Threat category           | Example behaviour                                                                             |
-| ------------------------- | --------------------------------------------------------------------------------------------- |
-| Prompt injection          | Attempting to ignore or override system instructions.                                         |
-| Sensitive resource access | Requesting `.env`, SSH keys, credential files, or runtime secrets.                            |
-| Credential access         | Requesting API keys, passwords, tokens, or private keys.                                      |
-| Data exfiltration         | Sending sensitive information to an external endpoint.                                        |
-| Suspicious network access | Referring to untrusted or ad-hoc destinations such as request collectors or webhook services. |
-| Workspace escape          | Attempting to access paths outside the Agent’s assigned workspace.                            |
-| Destructive action        | Deleting files, wiping a workspace, formatting a drive, or dropping a database.               |
-| Privilege escalation      | Attempting to bypass the sandbox, use `sudo`, run as root, or disable security controls.      |
+* Prompt injection and instruction overrides.
+* Credential and token access.
+* Sensitive resources such as `.env`, SSH keys, and credential files.
+* Data exfiltration to external destinations.
+* Suspicious network destinations.
+* Workspace escape attempts.
+* Destructive operations such as deleting or wiping data.
+* Privilege escalation and attempts to bypass security controls.
 
-### Risk scoring
+### Explainable risk scoring
 
-Each detected signal contributes a weighted amount to the base risk score.
+Every detected signal includes a label, score, category, and reason. This makes the decision visible to the user instead of presenting an unexplained block.
 
 For example:
 
 ```text
+Sensitive resource access       +18
 Credential request              +25
 External data transmission      +20
-Suspicious network destination  +12
-Sensitive resource access       +18
+Credential + exfiltration chain +10
 ------------------------------------------------
-Base risk                        75
+Final risk                       73
+Decision                         DENY
 ```
 
-Combination signals add further context when multiple suspicious behaviours appear together.
+The frontend displays the final score, detected categories, score breakdown, and explanation for the decision.
 
-For example:
+For a review decision, the user can see why approval is required:
 
 ```text
-Credential access + data exfiltration
-→ additional +10 risk
+Human review required
+
+Detected:
+- Sensitive resource access
+- Credential access
+
+Reason:
+The request references a sensitive configuration file
+and asks for authentication credentials.
+
+[Approve once] [Confirm threat]
 ```
 
-The base score is capped before Immune Memory is applied so that previously learned evidence can still contribute to the final decision.
-
-### Decision thresholds
-
-The final score determines the policy decision:
-
-| Final score | Decision | Behaviour                                         |
-| ----------: | -------- | ------------------------------------------------- |
-|        0–49 | Allow    | The request can proceed to the next policy layer. |
-|       50–69 | Review   | The Run is held for human review.                 |
-|      70–100 | Deny     | The request is automatically blocked.             |
-
-For example:
+For a denied decision:
 
 ```text
-Final score: 35
-→ Allow
+Action blocked
 
-Final score: 58
-→ Human review
+The request was blocked because it exceeded the Immune System
+risk threshold.
 
-Final score: 85
-→ Automatically deny
+The Agent Runtime was not called.
 ```
-
-The decision, score, threat categories, score breakdown, and reasons are returned together as an `ImmuneAssessment`.
-
-### Explainable assessment
-
-The Immune System does not return only a score. It also records how the score was calculated.
-
-An assessment contains:
-
-```text
-Final score
-Base score
-Immune Memory adjustment
-Decision
-Threat categories
-Reasons
-Score breakdown
-Matched memory IDs
-Whether a learned threat matched
-```
-
-For example:
-
-```text
-Decision: deny
-Final score: 85
-
-Reasons:
-- Prompt requests authentication credentials.
-- Prompt requests transmitting information externally.
-- Credential access combined with external transmission increases the likelihood of exfiltration.
-```
-
-This allows users and reviewers to understand why a request was blocked rather than receiving an unexplained rejection.
 
 ### Immune Memory
 
-When a suspicious event is confirmed, the system stores a normalised fingerprint of the prompt in Immune Memory.
+The Immune System includes a lightweight memory mechanism for previously confirmed threats.
 
-For future prompts, the system:
+When a suspicious event is confirmed, the system stores a normalised fingerprint of the prompt, its threat category, confidence, number of confirmations, and current status.
 
-1. Normalises the new prompt.
-2. Compares it with active confirmed memory fingerprints.
-3. Calculates token similarity.
-4. Matches memories above the similarity threshold.
-5. Applies an additional risk adjustment based on similarity and confidence.
-
-The memory adjustment is calculated using:
+For future prompts, the system compares the new prompt with active memory fingerprints. If the similarity is sufficiently high, the previous threat contributes an additional risk score:
 
 ```text
-similarity × memory confidence × 25
+Base risk          45
+Immune Memory      +18
+----------------------
+Final risk          63
+Decision            REVIEW
+```
+
+The memory match is included in the score breakdown so that users can understand why the final score increased.
+
+### Learning from human review
+
+When a reviewer confirms that a suspicious event is a real threat, the Immune System creates or updates an Immune Memory record.
+
+Repeated confirmations increase the memory’s confidence. Dismissed events reduce confidence, allowing the system to distinguish between repeatedly confirmed threats and possible false positives.
+
+This allows the system to learn from previous security decisions while keeping the process visible through the audit history.
+
+### Integration with Agent governance
+
+Agent Immune works together with the Agent ability and approval middleware.
+
+A request must satisfy both checks:
+
+```text
+Immune decision
+    +
+Agent ability policy
+    ↓
+Final execution decision
 ```
 
 For example:
 
-```text
-Base risk:              60
-Memory similarity:      80%
-Memory confidence:      90%
-Memory adjustment:      18
---------------------------------
-Final risk:              78
-```
+* A request may be allowed by the Immune System but denied because the Agent lacks `canRunCommand`.
+* A request may be permitted by the Agent’s abilities but held for human review because its risk score is high.
+* A request may be denied by Agent Immune before the Agent Runtime is called.
 
-Immune Memory allows the platform to reuse previously confirmed security knowledge while retaining an explanation of which memory records influenced the decision.
-
-### Learning from review
-
-When a human confirms a suspicious threat, the system can create or update an Immune Memory record.
-
-Memory records contain:
-
-```text
-Threat category
-Normalised fingerprint
-Confirmation count
-Dismissal count
-Detection count
-Confidence
-Automatic-block status
-Source event
-Creation time
-Last update time
-```
-
-Repeated confirmations increase confidence, while dismissed events reduce confidence. Similar threats are merged into an existing memory record when their fingerprints are sufficiently similar.
-
-This allows the system to become more cautious about recurring threat patterns without treating every prompt as identical.
-
-### Integration with Agent governance
-
-Agent Immune works alongside the Agent ability and approval middleware.
-
-```text
-User prompt
-    ↓
-Agent Immune threat assessment
-    ↓
-Ability and policy evaluation
-    ↓
-Allow, deny, or request approval
-    ↓
-Agent Runtime
-```
-
-The Immune System focuses on whether the request appears suspicious. The ability system focuses on whether the Agent is permitted to perform the required capability. Human approval provides an additional decision point for risky but potentially legitimate actions.
-
-A request may therefore be:
-
-```text
-Allowed by abilities but denied by Agent Immune
-Allowed by Agent Immune but denied by abilities
-Allowed by both systems
-Held for human review
-```
+All important decisions generate audit information containing the Agent, Run, action, risk, decision, reason, and timestamp.
 
 ### Security evidence
 
-Each Immune assessment produces an `ImmuneThreatEvent` containing:
+The Immune System provides visible evidence through:
 
-```text
-Agent ID
-Run ID
-Prompt excerpt
-Risk score
-Base score
-Memory adjustment
-Decision
-Threat categories
-Reasons
-Score breakdown
-Matched memory IDs
-Review status
-Creation time
-Review time
-```
+* Risk scores and score breakdowns.
+* Threat categories and explanations.
+* Human review controls.
+* Automatic denial messages.
+* Immune Memory match information.
+* Audit events for allow, review, and deny decisions.
+* A dashboard denial feed showing whether the decision came from policy enforcement or Agent Immune.
 
-These events are displayed in the frontend so that users can inspect:
+This turns Agent safety from an invisible backend process into something users can understand, review, and demonstrate.
 
-* Why a request was considered suspicious.
-* Which threat categories were detected.
-* How the score was calculated.
-* Whether Immune Memory influenced the decision.
-* Whether the event was automatically blocked or reviewed by a human.
 
-This turns threat detection into explainable evidence rather than an opaque security mechanism.
-
-## Secret Redaction 
+## Secret Redaction and Dashboard 
 By Tham Jodena [@j0-oj](https://github.com/j0-oj)
 ### Problem
 Agent-generated content can accidentally contain sensitive information such as API keys, authentication tokens, or endpoint credentials. This information may appear in prompts, Agent responses, error messages, Runtime output, audit records, or API responses.
@@ -1006,7 +918,7 @@ If sensitive values are persisted or returned to the frontend, they may be expos
 
 ### Solution
 
-The Avengers includes a shared, stateless redaction utility located at:
+AvengerAI includes a shared, stateless redaction utility located at:
 
 ```text
 apps/server/src/utils/redaction.ts
@@ -1098,6 +1010,22 @@ JSON storage, API response, or server log
 
 As a result, users can inspect Agent history and audit evidence without exposing configured credentials or common credential-shaped values.
 
+### Dashboard
+
+The Avenger AI Dashboard provides a system-wide view of Agent activity and middleware decisions. It helps users understand whether Agents are available, how often Runs succeed or fail, which Agents are most active, how many tokens are being used, and whether policy or Immune System denials are increasing.
+
+The dashboard includes:
+
+- Agent status overview across ready, busy, stopped, and error states.
+- Success, failure, and cancellation percentages for completed Runs.
+- Run volume over the last seven days.
+- The most active Agents by total Run count.
+- System-wide and per-Agent token usage for completed Runs.
+- Daily denial trends.
+- A redacted breakdown of common Run and Agent errors.
+- A recent denial feed showing the responsible Agent, action, reason, and whether the decision came from policy enforcement or Agent Immune.
+
+This gives users a quick operational and security overview while the detailed Audit view provides the full history of individual events.
 
 ## Group Task 
 By Marcus Yeong Mun Hong [@mxrcxsz12](https://github.com/Mxrcxsz)
@@ -1116,7 +1044,7 @@ Users also need to understand:
 
 ### Solution
 
-The Avengers introduces a lightweight group-chat style coordination middleware.
+AvengerAI introduces a lightweight group-chat style coordination middleware.
 
 A user creates a group task by writing a prompt and mentioning the Agents they want to involve:
 
@@ -1271,10 +1199,11 @@ This demonstrates that the coordination layer can route turns and maintain share
 
 
 # Architecture and Design Summary
-
+## Architecture
+<img width="2912" height="2356" alt="TechJam" src="https://github.com/user-attachments/assets/2f3fc106-59f6-4e07-b524-a37bb06d0f0c" />
 
 ## Design Summary
-The Avengers uses layered enforcement:
+AvengerAI uses layered enforcement:
 
 ```text
 Identity and authorisation
@@ -1493,7 +1422,7 @@ Once the group task status becomes "completed", the group task is done.
 
 # Future Implementations
 
-The Avengers currently provides a focused proof of concept. The following improvements could extend the middleware towards a production-ready Agent platform.
+AvengerAI currently provides a focused proof of concept. The following improvements could extend the middleware towards a production-ready Agent platform.
 
 | Category              | Future Work                                                                 | Why it Matters                                                                 |
 |-----------------------|------------------------------------------------------------------------------|--------------------------------------------------------------------------------|
@@ -1504,4 +1433,4 @@ The Avengers currently provides a focused proof of concept. The following improv
 | **Multi-Agent Coordination** | Add participant approval so only authorized Agents can join a shared session | Prevents an unrelated Agent from joining or reading someone else's coordination session |
 | **UX/Governance**     | Replace polling with real-time push (SSE/WebSockets) for approvals and audit updates | Removes the 3-second notification delay and the constant background polling |
 
-These future improvements would extend The Avengers from a local hackathon prototype into a more durable, scalable, and production-oriented governance layer. They are deliberately separated from the current implementation so that the scope and limitations of the prototype remain clear.
+These future improvements would extend AvengerAI from a local hackathon prototype into a more durable, scalable, and production-oriented governance layer. They are deliberately separated from the current implementation so that the scope and limitations of the prototype remain clear.

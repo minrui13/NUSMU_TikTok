@@ -3,6 +3,7 @@ import path from "node:path";
 import { AgentService } from "./agent-service.js";
 import { createApp } from "./app.js";
 import { loadConfig, writeCodexConfig } from "./config.js";
+import { DashboardService } from "./dashboard-service.js";
 import { GroupTaskService } from "./group-task-service.js";  // add
 import { createRunner } from "./runner-factory.js";
 import { JsonStore } from "./store.js";
@@ -17,8 +18,9 @@ const runner = createRunner(config);
 const service = new AgentService(config, store, workspaces, runner);
 await service.initialize();
 const groupTaskService = new GroupTaskService(service);  // add
+const dashboardService = new DashboardService(store);
 
-const app = await createApp(config, service, groupTaskService);
+const app = await createApp(config, service, groupTaskService, dashboardService);
 
 const shutdown = async (signal: string) => {
   app.log.info({ signal }, "Shutting down");

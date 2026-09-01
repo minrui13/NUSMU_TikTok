@@ -11,6 +11,8 @@ import { HttpError } from "./errors.js";
 import { Ability } from "./types/abilities.js";
 import { getKnownSecrets, redactSecrets } from "./utils/redaction.js";
 
+import { DashboardService } from "./dashboard-service.js";
+
 import type { AgentService } from "./agent-service.js";
 import type { AppConfig } from "./config.js";
 import type { GroupTaskService } from "./group-task-service.js"; // add import
@@ -19,10 +21,18 @@ const agentIdParams = z.object({ id: z.string().uuid() });
 const runIdParams = z.object({ id: z.string().uuid() });
 const immuneEventIdParams = z.object({ id: z.string().uuid() });
 const immuneReviewBody = z.object({ action: z.enum(["confirm", "dismiss"]) });
+const agentRole = z.enum([
+  "frontend_developer",
+  "backend_developer",
+  "fullstack_developer",
+  "marketing",
+  "admin",
+]);
 const createAgentBody = z.object({
   name: z.string().trim().min(1).max(80),
   description: z.string().max(500).optional(),
   instructions: z.string().max(10_000).optional(),
+  role: agentRole.optional(),
 });
 const groupTaskIdParams = z.object({ id: z.string().uuid() });
 const createGroupTaskBody = z.object({
@@ -59,6 +69,19 @@ export async function createApp(
   config: AppConfig,
   service: AgentService,
   groupTaskService: GroupTaskService,
+  // Optional so existing test call sites with 3 args keep compiling; falls
+  // back to an empty in-memory store when omitted.
+  dashboardService: DashboardService = new DashboardService({
+    snapshot: () => ({
+      version: 1,
+      agents: [],
+      messages: [],
+      runs: [],
+      immuneThreatEvents: [],
+      immuneMemories: [],
+      auditEvents: [],
+    }),
+  }),
 ): Promise<FastifyInstance> {
   const app = Fastify({
     logger: {
@@ -161,6 +184,10 @@ export async function createApp(
     return { runs: service.getAllRuns() };
   });
 
+  app.get("/api/runs/pendingApprovals", async () => {
+    return { runs: service.getPendingApprovals() };
+  });
+
   app.get("/api/runs/:id", async (request) => {
     const { id } = runIdParams.parse(request.params);
     return { run: service.getRun(id) };
@@ -228,8 +255,9 @@ export async function createApp(
     return { run: await service.approveRun(id, userId, body.isApprove) };
   });
 
-  app.get("/api/runs/pendingApprovals", async () => {
-    return { runs: service.getPendingApprovals() };
+  app.get("/api/dashboard", async () => dashboardService.getDashboard());
+  app.get("/api/admin/trust-summary", async () => {
+    return { items: service.getTrustSummary() };
   });
 
   if (config.nodeEnv === "production") {
