@@ -1,12 +1,12 @@
 import { Ability, AbilityBody } from "./types/abilities";
 import { AuditEvent } from "./types/audits";
+import { GroupTaskState } from "./types/group-task"
 
 import type { DashboardSnapshot } from "./components/dashboard/types";
 import type {
   Agent,
   AgentRole,
   AgentRun,
-  GroupTaskState,
   ImmuneMemory,
   ImmuneThreatEvent,
   Message,
