@@ -5,14 +5,14 @@ import { getKnownSecrets, redactSecrets } from "./redaction.js";
 describe("redactSecrets", () => {
   it("redacts a string containing exactly one known secret", () => {
     expect(redactSecrets("token=abc123secret", ["abc123secret"])).toBe(
-      "token=",
+      "token=[REDACTED]",
     );
   });
 
   it("redacts a string containing the same secret twice", () => {
     expect(
       redactSecrets("abc123secret and again abc123secret", ["abc123secret"]),
-    ).toBe(" and again ");
+    ).toBe("[REDACTED] and again [REDACTED]");
   });
 
   it("redacts secrets at every depth of a deeply nested structure", () => {
@@ -27,7 +27,7 @@ describe("redactSecrets", () => {
     expect(result).toEqual({
       level1: {
         level2: {
-          level3: ["safe", "", { deep: "" }],
+          level3: ["safe", "[REDACTED]", { deep: "[REDACTED]" }],
         },
       },
     });
@@ -56,14 +56,14 @@ describe("redactSecrets", () => {
 
   it("redacts a value matching a generic pattern even when not in the known secrets list", () => {
     const result = redactSecrets("key: sk-abcdEFGH12345678", []);
-    expect(result).toBe("key: ");
+    expect(result).toBe("key: [REDACTED]");
   });
 
   it("redacts generic patterns even when immediately preceded by a word character", () => {
     const input =
       'echo -e "$ARK_API_KEY\\nsk-1234567890abcdefGHIJ\\nep-abcd1234efgh5678\\nBearer abc123XYZ789token"';
     const result = redactSecrets(input, []);
-    expect(result).toBe('echo -e "$ARK_API_KEY\\n\\n\\n"');
+    expect(result).toBe('echo -e "$ARK_API_KEY\\n[REDACTED]\\n[REDACTED]\\n[REDACTED]"');
   });
 
   it("does not mutate the input", () => {
