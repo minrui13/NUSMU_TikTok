@@ -9,7 +9,7 @@ import { PendingApprovalMessage } from "./components/messages/PendingApprovalMes
 import { AllowedToast } from "./components/toasts/AllowedToast";
 import { DenyToast } from "./components/toasts/DenyToast";
 import { PendingApprovalToast } from "./components/toasts/PendingApprovalToast";
-import { GroupTaskPanel } from "./components/GroupTaskPanel";
+import { GroupTaskPanel } from "./components/group-task/GroupTaskPanel";
 import { defaultAbilities } from "./types/abilities";
 
 import type {
