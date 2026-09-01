@@ -1295,6 +1295,9 @@ By Goh Min Rui [@minrui13](https://github.com/minrui13)
 
 ## Immunity System Demo
 By Su Myat Myat Htay [@sumyatmyathtay](https://github.com/SuMyatMyatHtay)
+
+### Immunity System
+
 1. Prompt ```Analyze the files in this workspace and give me a short summary. ```
 
    * Since the risk score is ```LOW RISK```,  the agent will run normally.
@@ -1318,6 +1321,17 @@ By Su Myat Myat Htay [@sumyatmyathtay](https://github.com/SuMyatMyatHtay)
 AUTO BLOCK
 The run should stop before the Agent Runtime executes.
 There should be no approval required for this case.
+
+### Admin Approval Centre
+
+1. Click on 'Admin Centre' from the sidebar
+
+<img width="960" height="499" alt="image" src="https://github.com/user-attachments/assets/ee6b3686-11a5-4b07-8f7e-1afd52e0e4e4" />
+
+2. Choose 'Approve & continue' or 'Reject' the run 
+   
+<img width="960" height="498" alt="image" src="https://github.com/user-attachments/assets/9df6a863-675a-492f-936a-cd1b5a22134f" />
+
 
 ## Secret Redaction and Dashboard Demo
 By Tham Jodena [@j0-oj](https://github.com/j0-oj)
